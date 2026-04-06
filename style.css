@@ -32,14 +32,16 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html { height: 100%; background: var(--bg); }
-body { height: 100%; font-family: 'Heebo', sans-serif; color: var(--text); background: var(--bg); direction: rtl; }
+html { height: 100%; background: var(--bg); overflow-x: hidden; }
+body { height: 100%; font-family: 'Heebo', sans-serif; color: var(--text); background: var(--bg); direction: rtl; overflow-x: hidden; width: 100%; }
 
 /* ── App Shell ── */
 .app-shell {
   display: flex;
   height: 100%;
   overflow: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
 /* ── Sidebar (desktop) ── */
@@ -418,6 +420,7 @@ textarea::placeholder { color: var(--faint); }
    RESPONSIVE – tablet / mobile
    ══════════════════════════════════════════ */
 @media (max-width: 900px) {
+  .main-content { width: 100%; max-width: 100vw; overflow-x: hidden; }
   .sidebar { display: none; }
   .mobile-header { display: flex; }
   .desktop-datebar { display: none; }
@@ -433,7 +436,9 @@ textarea::placeholder { color: var(--faint); }
     font-family: 'Heebo', sans-serif; transition: .15s;
   }
   .mn-btn.active { color: var(--text); }
-  .tab-panel { padding: 14px 16px calc(20px + var(--safe-b)); }
+  .tab-panel { padding: 14px 16px calc(20px + var(--safe-b)); overflow-x: hidden; }
+  .hero-card { flex-direction: column; text-align: center; }
+  .fields-row { grid-template-columns: 1fr; }
   .log-layout { grid-template-columns: 1fr; }
   .cal-layout { grid-template-columns: 1fr; }
   .settings-layout { grid-template-columns: 1fr; }
