@@ -248,6 +248,7 @@
   </nav>
 
 </div><!-- /app-shell -->
+<div class="version-badge">v1.3</div>
 
 <!-- ══ OVERLAYS ══ -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -325,6 +326,19 @@
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
+// Force correct layout on mobile immediately
+(function() {
+  if (window.innerWidth <= 900) {
+    var sb = document.querySelector('.sidebar');
+    var mh = document.querySelector('.mobile-header');
+    var mn = document.querySelector('.mobile-nav');
+    var db = document.querySelector('.desktop-datebar');
+    if (sb) sb.style.display = 'none';
+    if (mh) mh.style.display = 'flex';
+    if (mn) mn.style.display = 'flex';
+    if (db) db.style.display = 'none';
+  }
+})();
 </script>
 </body>
 </html>
