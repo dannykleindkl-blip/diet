@@ -449,3 +449,43 @@ textarea::placeholder { color: var(--faint); }
   .cal-days { gap: 3px; }
   .cd { min-height: 46px; }
 }
+
+/* ══ NEW v2.0 ELEMENTS ══ */
+.weight-row {
+  display: flex; align-items: center; gap: 10px; padding: 4px 12px 14px;
+}
+.weight-row input {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-xs); padding: 9px 11px; color: var(--text);
+  font-size: 15px; font-family: 'Heebo', sans-serif; outline: none;
+}
+.weight-row input:focus { border-color: var(--border2); }
+
+.hc-val2 { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.cd-weight {
+  font-size: 9px; color: var(--blue); font-weight: 600; margin-top: 1px;
+}
+.cd-net.lo { color: var(--amber); }
+
+.shortcut-url {
+  font-size: 11px; word-break: break-all;
+  background: var(--surface2); padding: 10px 12px;
+  border-radius: var(--radius-sm); color: var(--text2);
+  line-height: 1.6; margin: 10px 0; font-family: monospace;
+  border: 1px solid var(--border);
+}
+
+.adv-layout { display: block; }
+
+/* version badge */
+.version-badge {
+  position: fixed; bottom: 8px; left: 10px;
+  font-size: 10px; color: var(--faint);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 99px; padding: 2px 8px; z-index: 999; pointer-events: none;
+}
+@media (max-width: 768px) {
+  .version-badge { bottom: calc(58px + var(--safe-b)); }
+  .weight-row { padding: 4px 12px 14px; }
+}

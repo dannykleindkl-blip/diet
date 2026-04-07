@@ -6,57 +6,51 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="מאזן"/>
-<meta name="description" content="יומן תזונה ופעילות גופנית יומי – מאזן"/>
 <meta name="theme-color" content="#fafaf8"/>
 <title>מאזן – יומן תזונה</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icons/icon-192.png"/>
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png"/>
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
 <div class="app-shell">
 
-  <!-- ══ DESKTOP SIDEBAR ══ -->
+  <!-- SIDEBAR (desktop) -->
   <aside class="sidebar">
     <div class="sb-logo">מאזן<span class="dot">.</span></div>
     <nav class="sb-nav">
       <button class="sb-btn active" data-tab="0" onclick="goTab(0,this)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         יומן
       </button>
       <button class="sb-btn" data-tab="1" onclick="goTab(1,this)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
         לוח שנה
       </button>
       <button class="sb-btn" data-tab="2" onclick="goTab(2,this)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         ניתוח
       </button>
       <button class="sb-btn" data-tab="3" onclick="goTab(3,this)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
         הגדרות
       </button>
     </nav>
     <div class="sb-footer">
-      <div class="sb-watch-badge">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="3"/><line x1="6" y1="8" x2="18" y2="8"/><line x1="6" y1="16" x2="18" y2="16"/></svg>
-        Apple Watch מחובר
-      </div>
+      <div class="sb-watch-badge">⌚ Apple Watch מחובר</div>
     </div>
   </aside>
 
-  <!-- ══ MOBILE TOP BAR ══ -->
+  <!-- MOBILE HEADER -->
   <header class="mobile-header">
     <div class="mh-title">מאזן<span class="dot">.</span></div>
     <div class="mh-date" id="mh-date" onclick="openOv('ov-date')">היום ›</div>
   </header>
 
-  <!-- ══ MAIN CONTENT ══ -->
+  <!-- MAIN -->
   <main class="main-content">
 
-    <!-- desktop date bar -->
     <div class="desktop-datebar">
       <div class="ddb-left">
         <button class="ddb-arrow" onclick="shiftDay(-1)">›</button>
@@ -66,21 +60,17 @@
       <button class="ddb-today" onclick="jumpToday()">חזור להיום</button>
     </div>
 
-    <!-- ══ TAB 0: LOG ══ -->
+    <!-- TAB 0: LOG -->
     <div id="t0" class="tab-panel">
       <div class="log-layout">
 
-        <!-- LEFT COLUMN -->
+        <!-- LEFT -->
         <div class="log-left">
-          <!-- Hero -->
           <div class="hero-card">
             <div class="ring-area">
               <div class="ring-wrap">
-                <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#e8e6e1" stroke-width="7"/><circle id="ring-arc" cx="50" cy="50" r="42" fill="none" stroke="#2d6a2d" stroke-width="7" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="263.9" transform="rotate(-90 50 50)" style="transition:.6s"/></svg>
-                <div class="ring-center">
-                  <div class="ring-val" id="ring-val">0</div>
-                  <div class="ring-sub">קק"ל נכנס</div>
-                </div>
+                <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#e4e2dd" stroke-width="7"/><circle id="ring-arc" cx="50" cy="50" r="42" fill="none" stroke="#2d6a2d" stroke-width="7" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="263.9" transform="rotate(-90 50 50)" style="transition:.6s"/></svg>
+                <div class="ring-center"><div class="ring-val" id="ring-val">0</div><div class="ring-sub">קק"ל נכנס</div></div>
               </div>
             </div>
             <div class="hero-stats" id="hero-stats"></div>
@@ -88,27 +78,32 @@
 
           <div id="deficit-banner"></div>
 
+          <!-- Weight -->
+          <div class="section-card">
+            <div class="sc-head"><div class="sc-title">⚖️ משקל יומי</div></div>
+            <div class="weight-row">
+              <input type="number" id="weight-input" inputmode="decimal" placeholder="הזן משקל בק&quot;ג" step="0.1"/>
+              <button class="sc-add" onclick="saveWeight()">שמור</button>
+            </div>
+          </div>
+
           <!-- Apple Watch -->
           <div class="section-card">
             <div class="sc-head">
-              <div class="sc-title">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="3"/><line x1="6" y1="8" x2="18" y2="8"/><line x1="6" y1="16" x2="18" y2="16"/></svg>
-                Apple Watch
-              </div>
-              <button class="sc-link" onclick="openOv('ov-shortcut')">איך לייבא?</button>
+              <div class="sc-title">⌚ Apple Watch</div>
+              <button class="sc-link" onclick="openOv('ov-shortcut')">הגדר קיצור ›</button>
             </div>
             <div class="health-grid">
-              <div class="hc" onclick="openOv('ov-steps')"><div class="hc-icon">🚶</div><div class="hc-label">צעדים</div><div class="hc-val" id="hc-steps">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-active')"><div class="hc-icon">🔥</div><div class="hc-label">קל' פעילות</div><div class="hc-val" id="hc-active">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-swim')"><div class="hc-icon">🏊</div><div class="hc-label">שחייה</div><div class="hc-val" id="hc-swim">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-gym')"><div class="hc-icon">🏋️</div><div class="hc-label">אימון</div><div class="hc-val" id="hc-gym">הזן</div></div>
+              <div class="hc" onclick="openOv('ov-steps')">    <div class="hc-icon">🚶</div><div class="hc-label">צעדים</div>        <div class="hc-val" id="hc-steps">הזן</div></div>
+              <div class="hc" onclick="openOv('ov-walkdist')"> <div class="hc-icon">📍</div><div class="hc-label">מרחק הליכה</div>  <div class="hc-val" id="hc-walkdist">הזן</div></div>
+              <div class="hc" onclick="openOv('ov-swim')">     <div class="hc-icon">🏊</div><div class="hc-label">שחייה</div>       <div class="hc-val" id="hc-swimmin">הזן</div><div class="hc-val2" id="hc-swimdist"></div></div>
+              <div class="hc" onclick="openOv('ov-actcal')">   <div class="hc-icon">🔥</div><div class="hc-label">קל' פעילות</div>  <div class="hc-val" id="hc-actcal">הזן</div></div>
             </div>
           </div>
         </div>
 
-        <!-- RIGHT COLUMN -->
+        <!-- RIGHT -->
         <div class="log-right">
-          <!-- Food -->
           <div class="section-card">
             <div class="sc-head">
               <div class="sc-title">🍽️ אוכל ושתייה</div>
@@ -116,27 +111,12 @@
             </div>
             <div id="food-list" class="item-list"></div>
           </div>
-
-          <!-- Exercise -->
-          <div class="section-card">
-            <div class="sc-head">
-              <div class="sc-title">🏃 פעילות נוספת</div>
-              <button class="sc-add" onclick="openOv('ov-ex')">+ הוסף</button>
-            </div>
-            <div id="ex-list" class="item-list"></div>
-          </div>
-
-          <!-- Notes -->
-          <div class="section-card">
-            <div class="sc-head"><div class="sc-title">📝 הערות יומיות</div></div>
-            <textarea id="day-notes" placeholder="איך הרגשת היום? מה אכלת בחוץ?..." oninput="saveNotes()"></textarea>
-          </div>
         </div>
 
       </div>
     </div>
 
-    <!-- ══ TAB 1: CALENDAR ══ -->
+    <!-- TAB 1: CALENDAR -->
     <div id="t1" class="tab-panel" style="display:none">
       <div class="cal-layout">
         <div class="cal-main">
@@ -152,14 +132,15 @@
           <div class="week-section">
             <div class="ws-title">7 ימים אחרונים</div>
             <div class="week-chart" id="week-chart"></div>
-            <div class="week-legend"><span class="wl-in">■ נכנס</span><span class="wl-out">■ נשרף</span></div>
+            <div class="week-legend"><span class="wl-in">נכנס</span><span class="wl-out">נשרף</span></div>
           </div>
+          <div class="week-section" id="weight-trend"></div>
           <div id="cal-detail-panel"></div>
         </div>
       </div>
     </div>
 
-    <!-- ══ TAB 2: ANALYSIS ══ -->
+    <!-- TAB 2: ANALYSIS -->
     <div id="t2" class="tab-panel" style="display:none">
       <div class="adv-layout">
         <div id="adv-summary-cards" class="adv-top-cards"></div>
@@ -170,7 +151,7 @@
       </div>
     </div>
 
-    <!-- ══ TAB 3: SETTINGS ══ -->
+    <!-- TAB 3: SETTINGS -->
     <div id="t3" class="tab-panel" style="display:none">
       <div class="settings-layout">
         <div class="settings-col">
@@ -189,10 +170,10 @@
               <div class="field"><label>גיל</label><input type="number" id="g-age" inputmode="numeric" placeholder="35"/></div>
               <div class="field"><label>מין</label><select id="g-sex"><option value="m">זכר</option><option value="f">נקבה</option></select></div>
             </div>
-            <div class="field"><label>רמת פעילות בסיסית</label>
+            <div class="field"><label>רמת פעילות</label>
               <select id="g-activity">
-                <option value="1.2">יושבני (עבודה במשרד בלבד)</option>
-                <option value="1.375" selected>קל (1–3 פעמים בשבוע)</option>
+                <option value="1.2">יושבני</option>
+                <option value="1.375" selected>קל (1–3 פעמים)</option>
                 <option value="1.55">בינוני (3–5 פעמים)</option>
                 <option value="1.725">גבוה (6–7 פעמים)</option>
               </select>
@@ -203,17 +184,9 @@
         <div class="settings-col">
           <div class="set-card">
             <h3 class="set-card-title">התקנה על iPhone</h3>
-            <div class="install-step"><div class="step-num">1</div><div class="step-text">פתח דף זה ב-<strong>Safari</strong> (לא Chrome)</div></div>
-            <div class="install-step"><div class="step-num">2</div><div class="step-text">לחץ על <strong>כפתור השיתוף ↑</strong> בתחתית</div></div>
-            <div class="install-step"><div class="step-num">3</div><div class="step-text">בחר <strong>"הוסף למסך הבית"</strong></div></div>
-            <div class="install-step"><div class="step-num">4</div><div class="step-text">לחץ <strong>"הוסף"</strong> — האפליקציה מותקנת!</div></div>
-          </div>
-          <div class="set-card">
-            <h3 class="set-card-title">Apple Watch → מאזן</h3>
-            <p class="set-note">השעון מסנכרן אוטומטית ל-Apple Health. כל ערב:</p>
-            <div class="install-step"><div class="step-num">1</div><div class="step-text">פתח <strong>בריאות</strong> → פעילות</div></div>
-            <div class="install-step"><div class="step-num">2</div><div class="step-text">ראה: <strong>צעדים</strong> + <strong>קלוריות פעילות</strong></div></div>
-            <div class="install-step"><div class="step-num">3</div><div class="step-text">הזן ב-מאזן בלחיצה על כרטיסי Apple Watch</div></div>
+            <div class="install-step"><div class="step-num">1</div><div class="step-text">פתח ב-<strong>Safari</strong></div></div>
+            <div class="install-step"><div class="step-num">2</div><div class="step-text">לחץ <strong>↑ שיתוף</strong> → <strong>הוסף למסך הבית</strong></div></div>
+            <div class="install-step"><div class="step-num">3</div><div class="step-text">לחץ <strong>הוסף</strong> — מותקן!</div></div>
           </div>
           <div class="set-card">
             <h3 class="set-card-title">ייצוא נתונים</h3>
@@ -227,7 +200,7 @@
 
   </main>
 
-  <!-- ══ MOBILE BOTTOM NAV ══ -->
+  <!-- MOBILE BOTTOM NAV -->
   <nav class="mobile-nav">
     <button class="mn-btn active" data-tab="0" onclick="goTab(0,this)">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -247,10 +220,10 @@
     </button>
   </nav>
 
-</div><!-- /app-shell -->
-<div class="version-badge">v1.3</div>
+</div>
+<div class="version-badge">v2.0</div>
 
-<!-- ══ OVERLAYS ══ -->
+<!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
   <div class="sheet-hdr"><div class="sheet-title">בחר תאריך</div><button class="sheet-close" onclick="closeOv('ov-date')">✕</button></div>
   <div class="field"><input type="date" id="date-inp" onchange="setDate()"/></div>
@@ -258,87 +231,58 @@
 
 <div class="overlay" id="ov-food" onclick="closeOv('ov-food')"><div class="sheet" onclick="sp(event)">
   <div class="sheet-hdr"><div class="sheet-title">הוסף אוכל / שתייה</div><button class="sheet-close" onclick="closeOv('ov-food')">✕</button></div>
-  <div class="field"><label>שם המנה</label><input type="text" id="f-name" placeholder="דוגמה: חזה עוף + אורז מלא"/></div>
+  <div class="sh-note">כתוב בעברית חופשית — האפליקציה תחשב קלוריות אוטומטית</div>
+  <div class="field"><label>מה אכלת? (עברית חופשית)</label><input type="text" id="f-text" placeholder="דוגמה: 2 ביצים עם טוסט ואבוקדו" oninput="autoEstimate()"/></div>
   <div class="fields-row">
-    <div class="field"><label>קלוריות</label><input type="number" id="f-cal" inputmode="numeric" placeholder="400"/></div>
+    <div class="field"><label>קלוריות (אוטומטי / ידני)</label><input type="number" id="f-cal" inputmode="numeric" placeholder="מחושב אוטומטית"/></div>
     <div class="field"><label>ארוחה</label><select id="f-meal"><option>ארוחת בוקר</option><option>ארוחת צהריים</option><option>ארוחת ערב</option><option>חטיף</option><option>שתייה</option></select></div>
   </div>
   <button class="sh-submit" onclick="addFood()">הוסף</button>
 </div></div>
 
-<div class="overlay" id="ov-ex" onclick="closeOv('ov-ex')"><div class="sheet" onclick="sp(event)">
-  <div class="sheet-hdr"><div class="sheet-title">הוסף פעילות</div><button class="sheet-close" onclick="closeOv('ov-ex')">✕</button></div>
-  <div class="fields-row">
-    <div class="field"><label>סוג פעילות</label><select id="e-type" onchange="calcEx()"><option value="run">ריצה</option><option value="walk">הליכה</option><option value="swim">שחייה</option><option value="cycle">רכיבה</option><option value="gym">כושר</option><option value="yoga">יוגה / פילאטיס</option><option value="other">אחר</option></select></div>
-    <div class="field"><label>משך (דקות)</label><input type="number" id="e-min" inputmode="numeric" placeholder="30" oninput="calcEx()"/></div>
-  </div>
-  <div class="field"><label>קלוריות שנשרפו</label><input type="number" id="e-cal" inputmode="numeric"/></div>
-  <button class="sh-submit" onclick="addEx()">הוסף</button>
-</div></div>
-
 <div class="overlay" id="ov-steps" onclick="closeOv('ov-steps')"><div class="sheet" onclick="sp(event)">
-  <div class="sheet-hdr"><div class="sheet-title">צעדים מ-Apple Watch</div><button class="sheet-close" onclick="closeOv('ov-steps')">✕</button></div>
-  <div class="sh-note">בריאות → פעילות → צעדים → ראה ערך היום</div>
+  <div class="sheet-hdr"><div class="sheet-title">🚶 צעדים</div><button class="sheet-close" onclick="closeOv('ov-steps')">✕</button></div>
+  <div class="sh-note">בריאות → פעילות → צעדים (או ממלא אוטומטית דרך iOS Shortcut)</div>
   <div class="field"><label>מספר צעדים</label><input type="number" id="h-steps" inputmode="numeric" placeholder="9500"/></div>
   <button class="sh-submit" onclick="saveSteps()">שמור</button>
 </div></div>
 
-<div class="overlay" id="ov-active" onclick="closeOv('ov-active')"><div class="sheet" onclick="sp(event)">
-  <div class="sheet-hdr"><div class="sheet-title">קלוריות פעילות</div><button class="sheet-close" onclick="closeOv('ov-active')">✕</button></div>
-  <div class="sh-note">בריאות → פעילות → קלוריות פעילות (הטבעות האדומה בשעון)</div>
-  <div class="field"><label>קלוריות פעילות</label><input type="number" id="h-active" inputmode="numeric" placeholder="420"/></div>
-  <button class="sh-submit" onclick="saveActive()">שמור</button>
+<div class="overlay" id="ov-walkdist" onclick="closeOv('ov-walkdist')"><div class="sheet" onclick="sp(event)">
+  <div class="sheet-hdr"><div class="sheet-title">📍 מרחק הליכה</div><button class="sheet-close" onclick="closeOv('ov-walkdist')">✕</button></div>
+  <div class="sh-note">בריאות → פעילות → מרחק הליכה וריצה</div>
+  <div class="field"><label>מרחק (ק"מ)</label><input type="number" id="h-walkdist" inputmode="decimal" step="0.1" placeholder="6.5"/></div>
+  <button class="sh-submit" onclick="saveWalkDist()">שמור</button>
 </div></div>
 
 <div class="overlay" id="ov-swim" onclick="closeOv('ov-swim')"><div class="sheet" onclick="sp(event)">
-  <div class="sheet-hdr"><div class="sheet-title">שחייה</div><button class="sheet-close" onclick="closeOv('ov-swim')">✕</button></div>
+  <div class="sheet-hdr"><div class="sheet-title">🏊 שחייה</div><button class="sheet-close" onclick="closeOv('ov-swim')">✕</button></div>
   <div class="sh-note">השעון מזהה שחייה אוטומטית. בריאות → אימונים → ראה את האימון האחרון</div>
   <div class="fields-row">
-    <div class="field"><label>משך (דקות)</label><input type="number" id="h-swim-min" inputmode="numeric" placeholder="30" oninput="calcSwim()"/></div>
-    <div class="field"><label>קלוריות</label><input type="number" id="h-swim-cal" inputmode="numeric" placeholder="240"/></div>
+    <div class="field"><label>זמן (דקות)</label><input type="number" id="h-swim-min" inputmode="numeric" placeholder="35"/></div>
+    <div class="field"><label>מרחק (מטרים)</label><input type="number" id="h-swim-dist" inputmode="numeric" placeholder="1400"/></div>
   </div>
   <button class="sh-submit" onclick="saveSwim()">שמור</button>
 </div></div>
 
-<div class="overlay" id="ov-gym" onclick="closeOv('ov-gym')"><div class="sheet" onclick="sp(event)">
-  <div class="sheet-hdr"><div class="sheet-title">אימון כושר</div><button class="sheet-close" onclick="closeOv('ov-gym')">✕</button></div>
-  <div class="sh-note">השעון מזהה אימון כושר. בריאות → אימונים → ראה קלוריות האימון</div>
-  <div class="fields-row">
-    <div class="field"><label>משך (דקות)</label><input type="number" id="h-gym-min" inputmode="numeric" placeholder="45" oninput="calcGym()"/></div>
-    <div class="field"><label>קלוריות</label><input type="number" id="h-gym-cal" inputmode="numeric" placeholder="310"/></div>
-  </div>
-  <button class="sh-submit" onclick="saveGym()">שמור</button>
+<div class="overlay" id="ov-actcal" onclick="closeOv('ov-actcal')"><div class="sheet" onclick="sp(event)">
+  <div class="sheet-hdr"><div class="sheet-title">🔥 קלוריות פעילות</div><button class="sheet-close" onclick="closeOv('ov-actcal')">✕</button></div>
+  <div class="sh-note">בריאות → פעילות → קלוריות פעילות (הטבעת האדומה בשעון)</div>
+  <div class="field"><label>קלוריות פעילות</label><input type="number" id="h-actcal" inputmode="numeric" placeholder="480"/></div>
+  <button class="sh-submit" onclick="saveActCal()">שמור</button>
 </div></div>
 
 <div class="overlay" id="ov-shortcut" onclick="closeOv('ov-shortcut')"><div class="sheet" onclick="sp(event)">
-  <div class="sheet-hdr"><div class="sheet-title">Apple Watch → מאזן</div><button class="sheet-close" onclick="closeOv('ov-shortcut')">✕</button></div>
-  <div class="sh-note">עם Apple Watch, כל הנתונים נשמרים ב-Apple Health אוטומטית. כל ערב לוקח 30 שניות להזין:</div>
-  <div class="install-step"><div class="step-num">1</div><div class="step-text">פתח <strong>בריאות</strong> → לחץ "סיכום"</div></div>
-  <div class="install-step"><div class="step-num">2</div><div class="step-text">ראה <strong>צעדים</strong> + <strong>קלוריות פעילות</strong> בראש הדף</div></div>
-  <div class="install-step"><div class="step-num">3</div><div class="step-text">אם שחית/אימנת: <strong>בריאות → אימונים</strong> → ראה קלוריות האימון</div></div>
-  <div class="install-step"><div class="step-num">4</div><div class="step-text">חזור למאזן ← לחץ על כל כרטיס ← הזן</div></div>
-  <div class="sh-note" style="margin-top:12px">💡 טיפ: iOS Shortcuts יכול לקרוא Health אוטומטית — צור קיצור "קבל כמות בריאות" → צעדים, והפעל אותו כל ערב.</div>
+  <div class="sheet-hdr"><div class="sheet-title">⌚ הגדרת iOS Shortcut</div><button class="sheet-close" onclick="closeOv('ov-shortcut')">✕</button></div>
+  <div class="sh-note">הקיצור <strong>צעדים יומי</strong> שלך יכול לשלוח נתונים ישירות לאפליקציה. הוסף שלב "Open URL" בסוף הקיצור:</div>
+  <div class="install-step"><div class="step-num">1</div><div class="step-text">פתח <strong>קיצורי דרך</strong> → ערוך את <strong>צעדים יומי</strong></div></div>
+  <div class="install-step"><div class="step-num">2</div><div class="step-text">הוסף שלב: <strong>פתח URL</strong> בסוף הקיצור</div></div>
+  <div class="install-step"><div class="step-num">3</div><div class="step-text">הדבק את ה-URL הבא — החלף כל [ערך] במשתנה מ-Apple Health:</div></div>
+  <div class="shortcut-url">https://dannykleindkl-blip.github.io/diet/?date=[תאריך-היום]&steps=[צעדים]&walkdist=[הליכה-ק"מ]&actcal=[קל'-פעילות]&swimmin=[שחייה-דק']&swimdist=[שחייה-מ']</div>
+  <div class="install-step"><div class="step-num">4</div><div class="step-text">הפעל את הקיצור — האפליקציה תיפתח ותשמור הכל אוטומטית ✅</div></div>
   <button class="sh-submit-outline" onclick="closeOv('ov-shortcut')">הבנתי</button>
 </div></div>
 
 <script src="app.js"></script>
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
-}
-// Force correct layout on mobile immediately
-(function() {
-  if (window.innerWidth <= 900) {
-    var sb = document.querySelector('.sidebar');
-    var mh = document.querySelector('.mobile-header');
-    var mn = document.querySelector('.mobile-nav');
-    var db = document.querySelector('.desktop-datebar');
-    if (sb) sb.style.display = 'none';
-    if (mh) mh.style.display = 'flex';
-    if (mn) mn.style.display = 'flex';
-    if (db) db.style.display = 'none';
-  }
-})();
-</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
 </body>
 </html>
