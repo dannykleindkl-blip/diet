@@ -409,7 +409,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   </nav>
 </div>
 
-<div class="version-badge">v2.2</div>
+<div class="version-badge">v2.3 · 2026-04-08 15:24 UTC</div>
 
 <!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -472,7 +472,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 
 <script>
 /* ══════════════════════════════════════════
-   מאזן v2.2 — all JS inline, no external app.js
+   מאזן v2.3 — all JS inline, no external app.js
    ══════════════════════════════════════════ */
 var DB={}, GOAL={cal:1600,deficit:500,weight:'',height:'',age:'',sex:'m',activity:1.375};
 var curD=todayStr(), calY, calM;
@@ -508,57 +508,72 @@ function showToast(msg){
    Works in Safari PWA mode on iPhone.
    ══════════════════════════════════════════ */
 function handleURLParams(){
-  /* On iOS PWA, window.location.search is reliable.
-     We also check the full href as a fallback. */
+  /* ── Step 1: read URL ── */
   var search = window.location.search || '';
   if(!search){
     var qi = window.location.href.indexOf('?');
     if(qi !== -1) search = window.location.href.slice(qi);
   }
-
-  if(!search || search === '?') return;   // nothing to do
+  if(!search || search === '?') return;
 
   var p = new URLSearchParams(search);
-  console.log('[מאזן v2.2] params:', search);
+  console.log('[מאזן v2.3] raw URL params:', search);
 
-  /* Need at least one data param to proceed */
-  if(!p.has('steps') && !p.has('actcal') && !p.has('swimmin') && !p.has('date')) return;
+  /* Require at least one health param */
+  if(!p.has('steps') && !p.has('actcal') && !p.has('swimmin') && !p.has('walkdist')) return;
 
-  /* ── Resolve date ── */
+  /* ── Step 2: resolve date ── */
   var dateParam = (p.get('date') || '').trim();
   var isTest    = (dateParam.toUpperCase() === 'TEST');
   var date      = isTest ? todayStr() : dateParam;
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) date = todayStr();  // fallback to today if bad format
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) date = todayStr();
 
-  /* ── Write health data into DB ── */
-  var h = dd(date).health;
-  if(p.has('steps'))    h.steps    = parseInt(p.get('steps'))       || 0;
+  /* ── Step 3: load the CURRENT DB from localStorage first
+     This is the critical fix — we must merge into the live DB,
+     not overwrite it. At this point DB is already loaded by load(),
+     so we just write directly into the existing object. ── */
+  if(!DB[date]) DB[date] = {foods:[], health:{}, weight:null};
+  if(!DB[date].health) DB[date].health = {};
+
+  var h = DB[date].health;  /* direct reference into live DB */
+
+  if(p.has('steps'))    h.steps    = parseInt(p.get('steps'),10)    || 0;
   if(p.has('walkdist')) h.walkDist = parseFloat(p.get('walkdist'))  || 0;
-  if(p.has('swimmin'))  h.swimMin  = parseInt(p.get('swimmin'))     || 0;
-  if(p.has('swimdist')) h.swimDist = parseInt(p.get('swimdist'))    || 0;
-  if(p.has('actcal'))   h.actCal   = parseInt(p.get('actcal'))      || 0;
+  if(p.has('swimmin'))  h.swimMin  = parseInt(p.get('swimmin'),10)  || 0;
+  if(p.has('swimdist')) h.swimDist = parseInt(p.get('swimdist'),10) || 0;
+  if(p.has('actcal'))   h.actCal   = parseInt(p.get('actcal'),10)   || 0;
 
-  /* ── Save to localStorage immediately ── */
+  console.log('[מאזן v2.3] writing into DB['+date+'].health:', JSON.stringify(h));
+
+  /* ── Step 4: persist the merged DB back to localStorage ── */
   persist();
 
-  /* ── Set current view date ── */
-  curD = date;
+  /* ── Step 5: verify the write landed ── */
+  try{
+    var verify = JSON.parse(localStorage.getItem('mz4_db')||'{}');
+    console.log('[מאזן v2.3] verified in localStorage:', JSON.stringify((verify[date]||{}).health));
+  }catch(e){}
 
-  /* ── Clean URL (no reload) ── */
+  /* ── Step 6: clean URL without reloading ── */
   try{ window.history.replaceState({}, document.title, window.location.pathname); }catch(e){}
 
-  /* ── Update UI ── */
+  /* ── Step 7: set view to the saved date and refresh all UI ── */
+  curD = date;
   updateDateLabels();
   goTab(0, document.querySelector('[data-tab="0"]'));
   renderLog();
 
-  /* ── Show banner ── */
+  /* ── Step 8: show confirmation banner ── */
+  var parts = [];
+  if(h.steps)    parts.push(rnd(h.steps).toLocaleString()+' צעד');
+  if(h.walkDist) parts.push(h.walkDist+' ק"מ');
+  if(h.actCal)   parts.push(h.actCal+' קק"ל');
+  if(h.swimMin)  parts.push(h.swimMin+' דק\' שחייה');
+  var detail = parts.length ? ' · '+parts.join(' · ') : '';
   var msg = isTest
-    ? '🧪 TEST OK — נתונים נשמרו ל-' + fmtDate(date)
-    : '✅ Apple Watch — נשמר ל-' + fmtDate(date);
+    ? '🧪 TEST OK — נשמר ל-'+fmtDate(date)+detail
+    : '✅ Apple Watch — נשמר ל-'+fmtDate(date)+detail;
   setTimeout(function(){ showToast(msg); }, 300);
-
-  console.log('[מאזן v2.2] saved for', date, h);
 }
 
 /* ══ Storage ══ */
