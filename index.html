@@ -409,7 +409,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   </nav>
 </div>
 
-<div class="version-badge">v2.3 · 2026-04-08 15:24 UTC</div>
+<div class="version-badge">v2.3-debug · 2026-04-08 20:02 UTC</div>
 
 <!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -549,10 +549,17 @@ function handleURLParams(){
   persist();
 
   /* ── Step 5: verify the write landed ── */
+  var verified = {};
   try{
-    var verify = JSON.parse(localStorage.getItem('mz4_db')||'{}');
-    console.log('[מאזן v2.3] verified in localStorage:', JSON.stringify((verify[date]||{}).health));
-  }catch(e){}
+    var rawAfter = localStorage.getItem('mz4_db') || '{}';
+    var dbAfter  = JSON.parse(rawAfter);
+    verified     = (dbAfter[date] && dbAfter[date].health) ? dbAfter[date].health : {};
+    /* DEBUG: full health object after save */
+    console.log('[DEBUG] date key   :', date);
+    console.log('[DEBUG] health saved:', JSON.stringify(verified));
+    console.log('[DEBUG] full DB entry:', JSON.stringify(dbAfter[date]));
+    console.log('[DEBUG] persist() called: YES — localStorage key mz4_db updated');
+  }catch(e){ console.error('[DEBUG] verify error:', e); }
 
   /* ── Step 6: clean URL without reloading ── */
   try{ window.history.replaceState({}, document.title, window.location.pathname); }catch(e){}
@@ -563,7 +570,29 @@ function handleURLParams(){
   goTab(0, document.querySelector('[data-tab="0"]'));
   renderLog();
 
-  /* ── Step 8: show confirmation banner ── */
+  /* ── Step 8: show debug popup then normal banner ── */
+  /* =====================================================
+     DEBUG BLOCK — remove this entire block when done
+     ===================================================== */
+  var debugLines = [
+    '🔍 DEBUG — נתוני קיצור',
+    '─────────────────────────',
+    'מפתח תאריך: ' + date,
+    'צעדים:       ' + (verified.steps    || 0),
+    'הליכה ק"מ:   ' + (verified.walkDist || 0),
+    'קל׳ פעילות:  ' + (verified.actCal   || 0),
+    'שחייה דק׳:   ' + (verified.swimMin  || 0),
+    'שחייה מ׳:    ' + (verified.swimDist || 0),
+    '─────────────────────────',
+    'persist(): ✅ נקרא',
+    'localStorage: ✅ נשמר'
+  ].join('\n');
+  setTimeout(function(){ alert(debugLines); }, 400);
+  /* =====================================================
+     END DEBUG BLOCK
+     ===================================================== */
+
+  /* Normal confirmation toast */
   var parts = [];
   if(h.steps)    parts.push(rnd(h.steps).toLocaleString()+' צעד');
   if(h.walkDist) parts.push(h.walkDist+' ק"מ');
@@ -573,7 +602,7 @@ function handleURLParams(){
   var msg = isTest
     ? '🧪 TEST OK — נשמר ל-'+fmtDate(date)+detail
     : '✅ Apple Watch — נשמר ל-'+fmtDate(date)+detail;
-  setTimeout(function(){ showToast(msg); }, 300);
+  setTimeout(function(){ showToast(msg); }, 2000);
 }
 
 /* ══ Storage ══ */

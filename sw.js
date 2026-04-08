@@ -2,7 +2,7 @@
    מאזן – Service Worker (offline support)
    ══════════════════════════════════════════ */
 
-const CACHE_NAME = 'mazan-v10';
+const CACHE_NAME = 'mazan-v11';
 const ASSETS = [
   './',
   './index.html',
