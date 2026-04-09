@@ -409,7 +409,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   </nav>
 </div>
 
-<div class="version-badge">v2.3-debug · 2026-04-08 20:02 UTC</div>
+<div class="version-badge">v2.4 · 2026-04-09 05:58 UTC</div>
 
 <!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -507,8 +507,58 @@ function showToast(msg){
    Saves to localStorage, updates UI, shows toast.
    Works in Safari PWA mode on iPhone.
    ══════════════════════════════════════════ */
+/* ══════════════════════════════════════════
+   CLOUDFLARE WORKER SYNC
+   ══════════════════════════════════════════ */
+var WORKER_URL = 'https://mazan-backend.danny-klein-dkl.workers.dev';
+
+/* POST one day's health data to the Worker */
+function syncToCloud(date, health) {
+  var payload = {
+    date:     date,
+    steps:    health.steps    || 0,
+    walkdist: health.walkDist || 0,
+    actcal:   health.actCal   || 0,
+    swimmin:  health.swimMin  || 0,
+    swimdist: health.swimDist || 0,
+  };
+  fetch(WORKER_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(payload),
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(r){ console.log('[מאזן] cloud sync OK:', JSON.stringify(r.saved)); })
+  .catch(function(e){ console.warn('[מאזן] cloud sync failed (offline?):', e.message); });
+  /* Fire-and-forget — never blocks the UI */
+}
+
+/* GET one day from the Worker and merge into local DB */
+function syncFromCloud(date, onDone) {
+  fetch(WORKER_URL + '/?date=' + date)
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.error) return;                        /* no cloud record yet */
+    if(!DB[date]) DB[date] = {foods:[], health:{}, weight:null};
+    var h = DB[date].health;
+    /* Only overwrite if cloud value is non-zero — keeps manual edits */
+    if(data.steps)    h.steps    = data.steps;
+    if(data.walkdist) h.walkDist = data.walkdist;
+    if(data.actcal)   h.actCal   = data.actcal;
+    if(data.swimmin)  h.swimMin  = data.swimmin;
+    if(data.swimdist) h.swimDist = data.swimdist;
+    persist();
+    console.log('[מאזן] pulled from cloud for', date, JSON.stringify(h));
+    if(onDone) onDone();
+  })
+  .catch(function(e){ console.warn('[מאזן] cloud pull failed:', e.message); });
+}
+
+/* ══════════════════════════════════════════
+   URL PARAMETER HANDLER (iOS Shortcut)
+   ══════════════════════════════════════════ */
 function handleURLParams(){
-  /* ── Step 1: read URL ── */
+  /* Read URL */
   var search = window.location.search || '';
   if(!search){
     var qi = window.location.href.indexOf('?');
@@ -517,82 +567,40 @@ function handleURLParams(){
   if(!search || search === '?') return;
 
   var p = new URLSearchParams(search);
-  console.log('[מאזן v2.3] raw URL params:', search);
-
-  /* Require at least one health param */
   if(!p.has('steps') && !p.has('actcal') && !p.has('swimmin') && !p.has('walkdist')) return;
 
-  /* ── Step 2: resolve date ── */
+  /* Resolve date */
   var dateParam = (p.get('date') || '').trim();
   var isTest    = (dateParam.toUpperCase() === 'TEST');
   var date      = isTest ? todayStr() : dateParam;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) date = todayStr();
 
-  /* ── Step 3: load the CURRENT DB from localStorage first
-     This is the critical fix — we must merge into the live DB,
-     not overwrite it. At this point DB is already loaded by load(),
-     so we just write directly into the existing object. ── */
+  /* Write into live DB */
   if(!DB[date]) DB[date] = {foods:[], health:{}, weight:null};
   if(!DB[date].health) DB[date].health = {};
-
-  var h = DB[date].health;  /* direct reference into live DB */
-
+  var h = DB[date].health;
   if(p.has('steps'))    h.steps    = parseInt(p.get('steps'),10)    || 0;
   if(p.has('walkdist')) h.walkDist = parseFloat(p.get('walkdist'))  || 0;
   if(p.has('swimmin'))  h.swimMin  = parseInt(p.get('swimmin'),10)  || 0;
   if(p.has('swimdist')) h.swimDist = parseInt(p.get('swimdist'),10) || 0;
   if(p.has('actcal'))   h.actCal   = parseInt(p.get('actcal'),10)   || 0;
 
-  console.log('[מאזן v2.3] writing into DB['+date+'].health:', JSON.stringify(h));
-
-  /* ── Step 4: persist the merged DB back to localStorage ── */
+  /* Save locally */
   persist();
 
-  /* ── Step 5: verify the write landed ── */
-  var verified = {};
-  try{
-    var rawAfter = localStorage.getItem('mz4_db') || '{}';
-    var dbAfter  = JSON.parse(rawAfter);
-    verified     = (dbAfter[date] && dbAfter[date].health) ? dbAfter[date].health : {};
-    /* DEBUG: full health object after save */
-    console.log('[DEBUG] date key   :', date);
-    console.log('[DEBUG] health saved:', JSON.stringify(verified));
-    console.log('[DEBUG] full DB entry:', JSON.stringify(dbAfter[date]));
-    console.log('[DEBUG] persist() called: YES — localStorage key mz4_db updated');
-  }catch(e){ console.error('[DEBUG] verify error:', e); }
+  /* Mirror to Cloudflare Worker (fire-and-forget) */
+  syncToCloud(date, h);
 
-  /* ── Step 6: clean URL without reloading ── */
+  /* Clean URL */
   try{ window.history.replaceState({}, document.title, window.location.pathname); }catch(e){}
 
-  /* ── Step 7: set view to the saved date and refresh all UI ── */
+  /* Update UI */
   curD = date;
   updateDateLabels();
   goTab(0, document.querySelector('[data-tab="0"]'));
   renderLog();
 
-  /* ── Step 8: show debug popup then normal banner ── */
-  /* =====================================================
-     DEBUG BLOCK — remove this entire block when done
-     ===================================================== */
-  var debugLines = [
-    '🔍 DEBUG — נתוני קיצור',
-    '─────────────────────────',
-    'מפתח תאריך: ' + date,
-    'צעדים:       ' + (verified.steps    || 0),
-    'הליכה ק"מ:   ' + (verified.walkDist || 0),
-    'קל׳ פעילות:  ' + (verified.actCal   || 0),
-    'שחייה דק׳:   ' + (verified.swimMin  || 0),
-    'שחייה מ׳:    ' + (verified.swimDist || 0),
-    '─────────────────────────',
-    'persist(): ✅ נקרא',
-    'localStorage: ✅ נשמר'
-  ].join('\n');
-  setTimeout(function(){ alert(debugLines); }, 400);
-  /* =====================================================
-     END DEBUG BLOCK
-     ===================================================== */
-
-  /* Normal confirmation toast */
+  /* Confirmation toast */
   var parts = [];
   if(h.steps)    parts.push(rnd(h.steps).toLocaleString()+' צעד');
   if(h.walkDist) parts.push(h.walkDist+' ק"מ');
@@ -600,9 +608,9 @@ function handleURLParams(){
   if(h.swimMin)  parts.push(h.swimMin+' דק\' שחייה');
   var detail = parts.length ? ' · '+parts.join(' · ') : '';
   var msg = isTest
-    ? '🧪 TEST OK — נשמר ל-'+fmtDate(date)+detail
+    ? '🧪 TEST — נשמר מקומית + ענן ל-'+fmtDate(date)+detail
     : '✅ Apple Watch — נשמר ל-'+fmtDate(date)+detail;
-  setTimeout(function(){ showToast(msg); }, 2000);
+  setTimeout(function(){ showToast(msg); }, 300);
 }
 
 /* ══ Storage ══ */
@@ -615,9 +623,11 @@ function load(){
   var gs=document.getElementById('g-sex');if(gs)gs.value=GOAL.sex||'m';
   var ga=document.getElementById('g-activity');if(ga)ga.value=GOAL.activity||1.375;
   var n=new Date();calY=n.getFullYear();calM=n.getMonth();
-  handleURLParams();   /* <-- must run before first render */
+  handleURLParams();
   updateDateLabels();
   renderLog();
+  /* Pull today's data from cloud in background — updates UI if newer data exists */
+  syncFromCloud(todayStr(), function(){ renderLog(); });
 }
 
 function saveGoal(){
