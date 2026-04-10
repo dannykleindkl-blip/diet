@@ -409,7 +409,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   </nav>
 </div>
 
-<div class="version-badge">v2.5 · 2026-04-10 16:00 UTC</div>
+<div class="version-badge">v2.6 · 2026-04-10 20:57 UTC</div>
 
 <!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -536,9 +536,11 @@ function syncToCloud(date, health) {
 /* GET one day from the Worker and merge into local DB */
 function syncFromCloud(date, onDone) {
   /* date must be YYYY-MM-DD — built by todayStr() using local timezone */
-  var fullURL = WORKER_URL + '/?date=' + date;
-  console.log('[מאזן] syncFromCloud → URL:', fullURL, '| date:', date);
-  fetch(fullURL)
+  /* FIX 1: cache-buster timestamp so every fetch hits the network        */
+  /* FIX 2: cache:'no-store' bypasses the browser HTTP cache entirely     */
+  var fullURL = WORKER_URL + '/?date=' + date + '&t=' + Date.now();
+  console.log('[מאזן] syncFromCloud → URL:', fullURL);
+  fetch(fullURL, { cache: 'no-store' })
   .then(function(r){ return r.json(); })
   .then(function(data){
     if(data.error) return;                        /* no cloud record yet */
@@ -551,10 +553,10 @@ function syncFromCloud(date, onDone) {
     if(data.swimmin)  h.swimMin  = data.swimmin;
     if(data.swimdist) h.swimDist = data.swimdist;
     persist();
-    console.log('[מאזן] pulled from cloud for', date, JSON.stringify(h));
+    console.log('[מאזן] cloud data merged for', date, JSON.stringify(h));
     if(onDone) onDone();
   })
-  .catch(function(e){ console.warn('[מאזן] cloud pull failed:', e.message); });
+  .catch(function(e){ console.warn('[מאזן] cloud pull failed (offline?):', e.message); });
 }
 
 /* ══════════════════════════════════════════
@@ -919,6 +921,16 @@ function clearAll(){if(confirm('למחוק את כל הנתונים?')){DB={};lo
 
 /* ══ INIT ══ */
 load();
+
+/* FIX 3: re-sync from cloud every time the app becomes visible.
+   This fires when the user taps the PWA icon, switches back from
+   another app, or wakes the screen — so data is always fresh.    */
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') {
+    console.log('[מאזן] app visible — syncing from cloud');
+    syncFromCloud(todayStr(), function() { renderLog(); });
+  }
+});
 </script>
 
 <script>
