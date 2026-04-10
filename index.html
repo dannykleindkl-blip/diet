@@ -409,7 +409,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   </nav>
 </div>
 
-<div class="version-badge">v2.6 · 2026-04-10 20:57 UTC</div>
+<div class="version-badge">v2.7 · 2026-04-10 21:16 UTC</div>
 
 <!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -806,19 +806,32 @@ function renderCal(){
   document.getElementById('cal-title').textContent=HE_M[calM]+' '+calY;
   var wc=document.getElementById('week-chart');
   if(wc){
+    /* FIX 1: use localDateStr() — not toISOString() — to stay in local timezone */
     var days7=[];
-    for(var i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);days7.push(d.toISOString().slice(0,10));}
-    var maxV=Math.max.apply(null,[1].concat(days7.map(function(d){var c=dayCalc(d);return Math.max(c.inn,c.totalOut);})));
-    wc.innerHTML=days7.map(function(d){
-      var c=dayCalc(d),inH=rnd((c.inn/maxV)*62),outH=rnd((c.totalOut/maxV)*62);
-      var dl=new Date(d+'T12:00:00');
-      return'<div class="wbar-wrap"><div class="wbar-cols"><div class="wbar in" style="height:'+(inH||2)+'px"></div><div class="wbar out" style="height:'+(outH||2)+'px"></div></div><div class="wbar-lbl">'+HE_D[dl.getDay()]+'</div></div>';
-    }).join('');
+    for(var i=6;i>=0;i--){ days7.push(localDateStr(i)); }
+
+    /* FIX 3: fetch any missing days from Cloudflare KV, then redraw bars */
+    var pending = days7.length;
+    function drawWeekBars() {
+      var maxV=Math.max.apply(null,[1].concat(days7.map(function(d){var cc=dayCalc(d);return Math.max(cc.inn,cc.totalOut);})));
+      wc.innerHTML=days7.map(function(d){
+        var cc=dayCalc(d),inH=rnd((cc.inn/maxV)*62),outH=rnd((cc.totalOut/maxV)*62);
+        var dl=new Date(d+'T12:00:00');
+        return'<div class="wbar-wrap"><div class="wbar-cols"><div class="wbar in" style="height:'+(inH||2)+'px"></div><div class="wbar out" style="height:'+(outH||2)+'px"></div></div><div class="wbar-lbl">'+HE_D[dl.getDay()]+'</div></div>';
+      }).join('');
+    }
+    drawWeekBars(); /* draw from local DB immediately */
+    days7.forEach(function(d) {
+      syncFromCloud(d, function() {
+        pending--;
+        if(pending <= 0) drawWeekBars(); /* redraw once all fetches complete */
+      });
+    });
   }
   var wt=document.getElementById('weight-trend');
   if(wt){
     var days14=[];
-    for(var j=13;j>=0;j--){var dw=new Date();dw.setDate(dw.getDate()-j);days14.push(dw.toISOString().slice(0,10));}
+    for(var j=13;j>=0;j--){ days14.push(localDateStr(j)); } /* FIX: local timezone */
     var wpts=days14.map(function(d){return{d:d,w:DB[d]&&DB[d].weight?DB[d].weight:null};}).filter(function(x){return x.w;});
     if(wpts.length>=2){
       var minW=Math.min.apply(null,wpts.map(function(x){return x.w;}))-0.5;
@@ -849,7 +862,31 @@ function renderCal(){
   }
   renderCalDetail();
 }
-function calPickDay(ds){curD=ds;updateDateLabels();renderCalDetail();renderLog();}
+function localDateStr(offsetDays) {
+  /* Returns YYYY-MM-DD in LOCAL timezone, offset by N days from today.
+     Fixes the toISOString() UTC bug throughout the calendar. */
+  var d = new Date();
+  d.setDate(d.getDate() - (offsetDays || 0));
+  var yyyy = d.getFullYear();
+  var mm   = String(d.getMonth() + 1).padStart(2, '0');
+  var dd2  = String(d.getDate()).padStart(2, '0');
+  return yyyy + '-' + mm + '-' + dd2;
+}
+
+/* FIX 2: calPickDay now fetches from cloud with no-cache before rendering */
+function calPickDay(ds) {
+  curD = ds;
+  updateDateLabels();
+  renderCalDetail();   /* show local data immediately while fetching */
+  renderLog();
+  /* Fetch fresh data for this specific historical date from Cloudflare KV */
+  syncFromCloud(ds, function() {
+    renderCalDetail();  /* re-render with cloud data once it arrives */
+    renderLog();
+    renderCal();        /* refresh calendar dots/scores too */
+    console.log('[מאזן] calPickDay cloud sync done for', ds);
+  });
+}
 function renderCalDetail(){
   var panel=document.getElementById('cal-detail-panel');if(!panel)return;
   var c=dayCalc(curD),day=dd(curD),h=day.health||{};
