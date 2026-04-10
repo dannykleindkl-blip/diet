@@ -409,7 +409,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   </nav>
 </div>
 
-<div class="version-badge">v2.4 · 2026-04-09 05:58 UTC</div>
+<div class="version-badge">v2.5 · 2026-04-10 16:00 UTC</div>
 
 <!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -477,7 +477,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 var DB={}, GOAL={cal:1600,deficit:500,weight:'',height:'',age:'',sex:'m',activity:1.375};
 var curD=todayStr(), calY, calM;
 
-function todayStr(){return new Date().toISOString().slice(0,10);}
+function todayStr(){var d=new Date();var yyyy=d.getFullYear();var mm=String(d.getMonth()+1).padStart(2,'0');var dd2=String(d.getDate()).padStart(2,'0');return yyyy+'-'+mm+'-'+dd2;}
 function dd(d){if(!DB[d])DB[d]={foods:[],health:{},weight:null};return DB[d];}
 function persist(){try{localStorage.setItem('mz4_db',JSON.stringify(DB));}catch(e){}}
 function rnd(x){return Math.round(x);}
@@ -535,7 +535,10 @@ function syncToCloud(date, health) {
 
 /* GET one day from the Worker and merge into local DB */
 function syncFromCloud(date, onDone) {
-  fetch(WORKER_URL + '/?date=' + date)
+  /* date must be YYYY-MM-DD — built by todayStr() using local timezone */
+  var fullURL = WORKER_URL + '/?date=' + date;
+  console.log('[מאזן] syncFromCloud → URL:', fullURL, '| date:', date);
+  fetch(fullURL)
   .then(function(r){ return r.json(); })
   .then(function(data){
     if(data.error) return;                        /* no cloud record yet */
