@@ -293,10 +293,11 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
               <button class="sc-link" onclick="openOv('ov-shortcut')">הגדר קיצור ›</button>
             </div>
             <div class="health-grid">
-              <div class="hc" onclick="openOv('ov-steps')">    <div class="hc-icon">🚶</div><div class="hc-label">צעדים</div>       <div class="hc-val" id="hc-steps">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-walkdist')"> <div class="hc-icon">📍</div><div class="hc-label">מרחק הליכה</div> <div class="hc-val" id="hc-walkdist">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-swim')">     <div class="hc-icon">🏊</div><div class="hc-label">שחייה</div>      <div class="hc-val" id="hc-swimmin">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-actcal')">   <div class="hc-icon">🔥</div><div class="hc-label">קל׳ פעילות</div><div class="hc-val" id="hc-actcal">הזן</div></div>
+              <div class="hc" onclick="openOv('ov-steps')">      <div class="hc-icon">🚶</div><div class="hc-label">צעדים</div>         <div class="hc-val" id="hc-steps">הזן</div></div>
+              <div class="hc" onclick="openOv('ov-walkdist')">   <div class="hc-icon">📍</div><div class="hc-label">מרחק הליכה</div>   <div class="hc-val" id="hc-walkdist">הזן</div></div>
+              <div class="hc" onclick="openOv('ov-swimdist')">   <div class="hc-icon">🏊</div><div class="hc-label">מרחק שחייה</div>   <div class="hc-val" id="hc-swimdist">הזן</div></div>
+              <div class="hc" onclick="openOv('ov-swimmin')">    <div class="hc-icon">⏱️</div><div class="hc-label">זמן שחייה</div>    <div class="hc-val" id="hc-swimmin">הזן</div></div>
+              <div class="hc" onclick="openOv('ov-actcal')">     <div class="hc-icon">🔥</div><div class="hc-label">קל׳ פעילות</div>  <div class="hc-val" id="hc-actcal">הזן</div></div>
             </div>
           </div>
         </div>
@@ -409,7 +410,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   </nav>
 </div>
 
-<div class="version-badge">v2.7 · 2026-04-10 21:16 UTC</div>
+<div class="version-badge">v2.8 · 2026-04-11 20:54 UTC</div>
 
 <!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -442,14 +443,18 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   <button class="sh-submit" onclick="saveWalkDist()">שמור</button>
 </div></div>
 
-<div class="overlay" id="ov-swim" onclick="closeOv('ov-swim')"><div class="sheet" onclick="sp(event)">
-  <div class="sheet-hdr"><div class="sheet-title">🏊 שחייה</div><button class="sheet-close" onclick="closeOv('ov-swim')">✕</button></div>
-  <div class="sh-note">בריאות → אימונים → ראה את האימון האחרון</div>
-  <div class="fields-row">
-    <div class="field"><label>זמן (דקות)</label><input type="number" id="h-swim-min" inputmode="numeric" placeholder="35"/></div>
-    <div class="field"><label>מרחק (מטרים)</label><input type="number" id="h-swim-dist" inputmode="numeric" placeholder="1400"/></div>
-  </div>
-  <button class="sh-submit" onclick="saveSwim()">שמור</button>
+<div class="overlay" id="ov-swimdist" onclick="closeOv('ov-swimdist')"><div class="sheet" onclick="sp(event)">
+  <div class="sheet-hdr"><div class="sheet-title">🏊 מרחק שחייה</div><button class="sheet-close" onclick="closeOv('ov-swimdist')">✕</button></div>
+  <div class="sh-note">בריאות → אימונים → ראה מרחק האימון האחרון</div>
+  <div class="field"><label>מרחק (מטרים)</label><input type="number" id="h-swim-dist" inputmode="numeric" placeholder="1400"/></div>
+  <button class="sh-submit" onclick="saveSwimDist()">שמור</button>
+</div></div>
+
+<div class="overlay" id="ov-swimmin" onclick="closeOv('ov-swimmin')"><div class="sheet" onclick="sp(event)">
+  <div class="sheet-hdr"><div class="sheet-title">⏱️ זמן שחייה</div><button class="sheet-close" onclick="closeOv('ov-swimmin')">✕</button></div>
+  <div class="sh-note">בריאות → אימונים → ראה משך האימון האחרון</div>
+  <div class="field"><label>זמן (דקות)</label><input type="number" id="h-swim-min" inputmode="numeric" placeholder="35"/></div>
+  <button class="sh-submit" onclick="saveSwimMin()">שמור</button>
 </div></div>
 
 <div class="overlay" id="ov-actcal" onclick="closeOv('ov-actcal')"><div class="sheet" onclick="sp(event)">
@@ -757,7 +762,8 @@ function renderActivityCards(){
   }
   sc('hc-steps',   h.steps   ?rnd(h.steps).toLocaleString()  :'','  צעד',  !!h.steps);
   sc('hc-walkdist',h.walkDist?Number(h.walkDist).toFixed(1)  :'','  ק"מ',  !!h.walkDist);
-  sc('hc-swimmin', h.swimMin ?rnd(h.swimMin)                 :'','  דק\'', !!h.swimMin);
+  sc('hc-swimdist', h.swimDist ?rnd(h.swimDist)               :'','  מ\'',  !!h.swimDist);
+  sc('hc-swimmin',  h.swimMin  ?rnd(h.swimMin)                :'','  דק\'', !!h.swimMin);
   sc('hc-actcal',  h.actCal  ?rnd(h.actCal)                  :'','  קק"ל', !!h.actCal);
 }
 
@@ -793,12 +799,20 @@ function saveWeight(){
 /* ══ Health manual ══ */
 function saveSteps()   {var v=parseInt(document.getElementById('h-steps').value)||0;      dd(curD).health.steps   =v;persist();renderLog();closeOv('ov-steps');}
 function saveWalkDist(){var v=parseFloat(document.getElementById('h-walkdist').value)||0;  dd(curD).health.walkDist=v;persist();renderLog();closeOv('ov-walkdist');}
-function saveSwim(){
-  var min=parseInt(document.getElementById('h-swim-min').value)||0;
+function saveSwimDist(){
   var dist=parseInt(document.getElementById('h-swim-dist').value)||0;
-  dd(curD).health.swimMin=min;dd(curD).health.swimDist=dist;
-  persist();renderLog();closeOv('ov-swim');
+  dd(curD).health.swimDist=dist;
+  persist();renderLog();closeOv('ov-swimdist');
+  document.getElementById('h-swim-dist').value='';
 }
+function saveSwimMin(){
+  var min=parseInt(document.getElementById('h-swim-min').value)||0;
+  dd(curD).health.swimMin=min;
+  persist();renderLog();closeOv('ov-swimmin');
+  document.getElementById('h-swim-min').value='';
+}
+/* Legacy wrapper kept for any old references */
+function saveSwim(){ saveSwimDist(); saveSwimMin(); }
 function saveActCal()  {var v=parseInt(document.getElementById('h-actcal').value)||0;      dd(curD).health.actCal  =v;persist();renderLog();closeOv('ov-actcal');}
 
 /* ══ Calendar ══ */
