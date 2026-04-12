@@ -40,7 +40,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 .sb-watch-badge{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--green);background:var(--green-bg);border-radius:99px;padding:5px 10px;}
 
 /* Mobile header */
-.mobile-header{display:none;align-items:center;justify-content:space-between;padding:calc(var(--safe-t) + 6px) 14px 6px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.mobile-header{display:none;align-items:center;justify-content:space-between;padding:calc(var(--safe-t) + 8px) 14px 8px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;position:relative;z-index:100;}
 .mh-title{font-size:18px;font-weight:700;letter-spacing:-.5px;}
 .mh-date-wrap{position:relative;display:flex;align-items:center;cursor:pointer;}
 .mh-date-wrap strong{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;}
@@ -134,7 +134,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 .cd.other{opacity:.28;}
 .cd-num{font-size:12px;font-weight:500;}
 .cd-net{font-size:9px;font-weight:700;margin-top:2px;}
-.cd-net.ok{color:var(--green)}.cd-net.hi{color:var(--red)}.cd-net.lo{color:var(--amber)}
+.cd-net.ok{color:var(--green)}.cd-net.hi{color:var(--red)}.cd-net.lo{color:var(--amber)}/* ok=deficit=green, hi=surplus=red */
 .cd-weight{font-size:9px;color:var(--blue);font-weight:600;margin-top:1px;}
 .cd-dot{width:4px;height:4px;border-radius:50%;margin-top:3px;background:var(--green-mid);}
 .week-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
@@ -145,7 +145,9 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 .wbar{flex:1;border-radius:3px 3px 0 0;min-height:2px;transition:height .3s;}
 .wbar.in{background:#a8c8e8;}.wbar.out{background:#8ac88a;}
 .wbar-lbl{font-size:9px;color:var(--faint);}
-.week-legend{display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--muted);}
+.week-legend{display:flex;gap:14px;margin-top:8px;font-size:11px;}
+.wl-in{color:#4a8ab0;font-weight:600;}
+.wl-out{color:#3a8a3a;font-weight:600;}
 .detail-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
 .detail-card h3{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--text2);}
 
@@ -211,8 +213,8 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 /* On mobile, t0 becomes a flex column:
    log-sticky = fixed height header (no scroll)
    log-scroll = fills remaining space and scrolls */
-.log-tab-mobile{padding:0!important;display:flex;flex-direction:column;overflow:hidden;}
-.log-sticky{flex-shrink:0;padding:8px 10px 4px;overflow:hidden;background:var(--bg);}
+.log-tab-mobile{padding:0!important;display:flex;flex-direction:column;overflow:hidden;height:100%;}
+.log-sticky{flex-shrink:0;padding:6px 10px 4px;overflow:hidden;background:var(--bg);z-index:1;}
 .log-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 10px 20px;-webkit-overflow-scrolling:touch;}
 .log-scroll::-webkit-scrollbar{display:none;}
 /* On desktop, revert to normal scrolling tab */
@@ -360,7 +362,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           <div class="week-section">
             <div class="ws-title">7 ימים אחרונים</div>
             <div class="week-chart" id="week-chart"></div>
-            <div class="week-legend"><span class="wl-in">■ נכנס</span>&nbsp;<span class="wl-out">■ נשרף</span></div>
+            <div class="week-legend"><span class="wl-in"><span style="display:inline-block;width:10px;height:10px;background:#a8c8e8;border-radius:2px;margin-left:4px;vertical-align:middle;"></span>נכנס</span><span class="wl-out"><span style="display:inline-block;width:10px;height:10px;background:#8ac88a;border-radius:2px;margin-left:4px;vertical-align:middle;"></span>נשרף</span></div>
           </div>
           <div class="week-section" id="weight-trend"></div>
           <div id="cal-detail-panel"></div>
@@ -441,7 +443,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.3 · 2026-04-12 20:04 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.4 · 2026-04-12 20:22 UTC</p>
           </div>
         </div>
       </div>
@@ -794,7 +796,8 @@ function renderLog(){
   var rv=document.getElementById('ring-val');if(rv)rv.textContent=rnd(inn);
   var hs=document.getElementById('hero-stats');
   /* net = inn - totalOut. Negative = burning more than eating = good. */
-  var netCls = net < -50 ? 'g' : net > 200 ? 'r' : 'a';
+  /* net<0 = deficit = good (green). net>0 = surplus = bad (red) */
+  var netCls = net < -50 ? 'g' : net > 100 ? 'r' : 'a';
   var netSign = net > 0 ? '+' : '';
   if(hs)hs.innerHTML='<div class="stat-row"><span class="stat-label">נשרף</span><span class="stat-val g">−'+rnd(totalOut)+'</span></div>'+
     '<div class="stat-row"><span class="stat-label">מאזן</span><span class="stat-val '+netCls+'">'+(netSign)+rnd(net)+'</span></div>'+
@@ -943,7 +946,8 @@ function renderCal(){
     var ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
     var cc=dayCalc(ds),hasData=DB[ds]&&((DB[ds].foods||[]).length||Object.keys(DB[ds].health||{}).length);
     var w=DB[ds]&&DB[ds].weight;
-    var netCls=cc.net<-80?'ok':cc.net>250?'hi':'lo';
+    /* net<0=deficit=ok(green), net>0=surplus=hi(red) */
+    var netCls=cc.net<-80?'ok':cc.net>100?'hi':'lo';
     cg.innerHTML+='<div class="cd'+(ds===td?' today':'')+(ds===curD?' sel':'')+'" onclick="calPickDay(\''+ds+'\')">'+
       '<div class="cd-num">'+day+'</div>'+
       (hasData?'<div class="cd-net '+netCls+'">'+(cc.net>=0?'+':'')+rnd(cc.net)+'</div>':'')+
@@ -1060,7 +1064,7 @@ function renderAdv(){
   if(atc)atc.innerHTML=
     '<div class="adv-metric"><div class="adv-metric-label">ממוצע יומי נכנס</div><div class="adv-metric-val" style="color:var(--blue)">'+avgIn+'</div></div>'+
     '<div class="adv-metric"><div class="adv-metric-label">ממוצע יומי נשרף</div><div class="adv-metric-val" style="color:var(--green)">'+avgOut+'</div></div>'+
-    '<div class="adv-metric"><div class="adv-metric-label">גרעון ממוצע</div><div class="adv-metric-val" style="color:'+(avgDef>=GOAL.deficit?'var(--green)':avgDef<0?'var(--red)':'var(--amber)')+'">'+(avgDef>0?'+':'')+rnd(avgDef)+'</div></div>'+
+    '<div class="adv-metric"><div class="adv-metric-label">גרעון ממוצע</div><div class="adv-metric-val" style="color:'+(avgDef>=GOAL.deficit?'var(--green)':avgDef<0?'var(--red)':'var(--amber)')+'">'+(avgDef>=0?'+':'')+rnd(avgDef)+'</div></div>'+
     '<div class="adv-metric"><div class="adv-metric-label">'+(weightDiff?'שינוי משקל':'ירידה/שבוע')+'</div><div class="adv-metric-val" style="color:var(--green-mid)">'+(weightDiff?(weightDiff>0?'+':'')+weightDiff+' ק"ג':weeklyLoss+' ק"ג')+'</div></div>';
   var mHtml='<div class="adv-card '+(avgDef>=GOAL.deficit?'highlight':'')+'"><h3>סיכום '+days.length+' ימים <span class="adv-tag '+(avgDef>0?'g':'r')+'">'+(avgDef>=0?'גרעון':'עודף')+'</span></h3><p>'+onTarget+' מתוך '+days.length+' ימים עמדת ביעד.<br>'+(avgDef>=GOAL.deficit?'בקצב זה תוריד כ-'+weeklyLoss+' ק"ג בשבוע!':'צריך לגדיל גרעון ב-'+rnd(GOAL.deficit-avgDef)+' קק"ל.')+'</p></div>';
   if(avgOut<300)mHtml+='<div class="adv-card warn-card"><h3>הגדל פעילות <span class="adv-tag a">חשוב</span></h3><p>שריפה ממוצעת נמוכה. הוסף 30 דק\' הליכה ביום.</p></div>';
