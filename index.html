@@ -42,7 +42,8 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 /* Mobile header */
 .mobile-header{display:none;align-items:center;justify-content:space-between;padding:calc(var(--safe-t) + 6px) 14px 6px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
 .mh-title{font-size:18px;font-weight:700;letter-spacing:-.5px;}
-.mh-date{font-size:13px;color:var(--muted);cursor:pointer;}
+.mh-date-wrap{position:relative;display:flex;align-items:center;cursor:pointer;}
+.mh-date-wrap strong{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;}
 
 /* Main */
 .main-content{flex:1;order:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);min-width:0;}
@@ -218,7 +219,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 .toggle-btn:hover{background:var(--surface2);border-color:var(--border2);}
 
 /* ══ MOBILE DATE BOLD ══ */
-.mh-date strong{font-weight:700;color:var(--text);}
+/* mh-date strong handled by .mh-date-wrap strong */
 
 /* ══ RESPONSIVE ══ */
 @media (max-width:768px){
@@ -269,7 +270,12 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 
   <header class="mobile-header">
     <div class="mh-title">מאזן<span class="dot">.</span></div>
-    <input type="date" id="mh-date-picker" style="position:absolute;opacity:0;width:0;height:0;" onchange="setDateFromPicker()"/><div class="mh-date" id="mh-date" onclick="triggerDatePicker()"><strong id="mh-date-text">היום</strong></div>
+    <div class="mh-date-wrap">
+      <strong id="mh-date-text">היום</strong>
+      <input type="date" id="mh-date-picker" onchange="setDateFromPicker()"
+        title="בחר תאריך"
+        style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;"/>
+    </div>
   </header>
 
   <main class="main-content">
@@ -423,7 +429,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.1 · 2026-04-12 07:10 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.2 · 2026-04-12 07:19 UTC</p>
           </div>
         </div>
       </div>
@@ -742,15 +748,15 @@ function updateDateLabels(){
   var lbl=isT?'היום':HE_DF[d.getDay()]+', '+d.getDate()+' '+HE_M[d.getMonth()];
   var mhdt=document.getElementById('mh-date-text');
   var ddbl=document.getElementById('ddb-label');
+  var picker=document.getElementById('mh-date-picker');
   if(mhdt)mhdt.textContent=lbl;
   if(ddbl)ddbl.textContent=lbl;
+  /* Keep picker value in sync so iOS shows the right month when opened */
+  if(picker) picker.value=curD;
 }
 
 /* Native date picker trigger */
-function triggerDatePicker(){
-  var picker=document.getElementById('mh-date-picker');
-  if(picker){ picker.value=curD; picker.showPicker ? picker.showPicker() : picker.click(); }
-}
+/* triggerDatePicker removed — input is now directly tappable on iOS PWA */
 function setDateFromPicker(){
   var v=document.getElementById('mh-date-picker').value;
   if(v){ curD=v; updateDateLabels(); renderLog(); }
