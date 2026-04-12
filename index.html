@@ -107,14 +107,14 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 
 /* Item list */
 .item-list{padding:0 12px 8px;min-height:24px;}
-.item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);}
+.item{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
 .item:last-child{border:none;}
 .item-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .item-dot.food{background:#7ab8e8;}
 .item-body{flex:1;min-width:0;}
-.item-name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-name{font-size:13px;white-space:normal;word-break:break-word;overflow-wrap:break-word;line-height:1.4;}
 .item-sub{font-size:10px;color:var(--muted);margin-top:0;}
-.item-cal{font-size:12px;font-weight:600;flex-shrink:0;color:var(--text2);}
+.item-cal{font-size:12px;font-weight:600;flex-shrink:0;color:var(--text2);margin-top:1px;}
 .item-del{width:22px;height:22px;border-radius:50%;background:var(--surface2);border:none;color:var(--faint);font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 .item-del:hover{color:var(--red);background:var(--red-bg);}
 .empty-note{font-size:13px;color:var(--faint);padding:8px 0;}
@@ -207,6 +207,21 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 /* Version badge */
 .version-badge{position:fixed;bottom:8px;left:10px;font-size:10px;color:var(--faint);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:2px 8px;z-index:999;pointer-events:none;}
 
+/* ══ STICKY LOG LAYOUT (mobile) ══ */
+/* On mobile, t0 becomes a flex column:
+   log-sticky = fixed height header (no scroll)
+   log-scroll = fills remaining space and scrolls */
+.log-tab-mobile{padding:0!important;display:flex;flex-direction:column;overflow:hidden;}
+.log-sticky{flex-shrink:0;padding:8px 10px 4px;overflow:hidden;background:var(--bg);}
+.log-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 10px 20px;-webkit-overflow-scrolling:touch;}
+.log-scroll::-webkit-scrollbar{display:none;}
+/* On desktop, revert to normal scrolling tab */
+@media (min-width:769px){
+  .log-tab-mobile{padding:10px 14px 24px!important;flex-direction:column;overflow:auto;}
+  .log-sticky{padding:0;overflow:visible;background:transparent;}
+  .log-scroll{flex:none;overflow:visible;padding:0;}
+}
+
 /* ══ RANGE BAR ══ */
 .range-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);}
 .range-btn{background:none;border:1px solid var(--border);border-radius:99px;padding:6px 16px;font-size:13px;font-family:'Heebo',sans-serif;color:var(--muted);cursor:pointer;transition:.15s;}
@@ -289,45 +304,42 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
     </div>
 
     <!-- TAB 0: LOG -->
-    <div id="t0" class="tab-panel">
-      <div class="log-layout">
-        <div class="log-left">
-          <div class="hero-card">
-            <div class="ring-wrap">
-              <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#e4e2dd" stroke-width="7"/><circle id="ring-arc" cx="50" cy="50" r="42" fill="none" stroke="#2d6a2d" stroke-width="7" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="263.9" transform="rotate(-90 50 50)" style="transition:.6s"/></svg>
-              <div class="ring-center"><div class="ring-val" id="ring-val">0</div><div class="ring-sub">קק"ל נכנס</div></div>
-            </div>
-            <div class="hero-stats" id="hero-stats"></div>
+    <div id="t0" class="tab-panel log-tab-mobile">
+      <!-- STICKY HEADER: ring + stats + weight + watch grid -->
+      <div class="log-sticky">
+        <div class="hero-card">
+          <div class="ring-wrap">
+            <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="#e4e2dd" stroke-width="7"/><circle id="ring-arc" cx="50" cy="50" r="42" fill="none" stroke="#2d6a2d" stroke-width="7" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="263.9" transform="rotate(-90 50 50)" style="transition:.6s"/></svg>
+            <div class="ring-center"><div class="ring-val" id="ring-val">0</div><div class="ring-sub">קק"ל נכנס</div></div>
           </div>
-          <div id="deficit-banner"></div>
-          <div class="section-card">
-            <div class="sc-head"><div class="sc-title">⚖️ משקל יומי</div></div>
-            <div class="weight-row">
-              <input type="number" id="weight-input" inputmode="decimal" placeholder='משקל בק"ג' step="0.1"/>
-              <button class="sc-add" onclick="saveWeight()">שמור</button>
-            </div>
-          </div>
-          <div class="section-card">
-            <div class="sc-head">
-              <div class="sc-title">⌚ Apple Watch</div>
-            </div>
-            <div class="health-grid">
-              <div class="hc" onclick="openOv('ov-steps')">      <div class="hc-icon">🚶</div><div class="hc-label">צעדים</div>         <div class="hc-val" id="hc-steps">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-walkdist')">   <div class="hc-icon">📍</div><div class="hc-label">מרחק הליכה</div>   <div class="hc-val" id="hc-walkdist">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-swimdist')">   <div class="hc-icon">🏊</div><div class="hc-label">מרחק שחייה</div>   <div class="hc-val" id="hc-swimdist">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-swimmin')">    <div class="hc-icon">⏱️</div><div class="hc-label">זמן שחייה</div>    <div class="hc-val" id="hc-swimmin">הזן</div></div>
-              <div class="hc" onclick="openOv('ov-actcal')">     <div class="hc-icon">🔥</div><div class="hc-label">קל׳ פעילות</div>  <div class="hc-val" id="hc-actcal">הזן</div></div>
-            </div>
+          <div class="hero-stats" id="hero-stats"></div>
+        </div>
+        <div id="deficit-banner"></div>
+        <div class="section-card">
+          <div class="sc-head"><div class="sc-title">⚖️ משקל יומי</div></div>
+          <div class="weight-row">
+            <input type="number" id="weight-input" inputmode="decimal" placeholder='משקל בק"ג' step="0.1"/>
+            <button class="sc-add" onclick="saveWeight()">שמור</button>
           </div>
         </div>
-        <div class="log-right">
-          <div class="section-card">
-            <div class="sc-head">
-              <div class="sc-title">🍽️ אוכל ושתייה</div>
-              <button class="sc-add" onclick="openOv('ov-food')">+ הוסף</button>
-            </div>
-            <div id="food-list" class="item-list"></div>
+        <div class="section-card">
+          <div class="health-grid">
+            <div class="hc" onclick="openOv('ov-steps')">      <div class="hc-icon">🚶</div><div class="hc-label">צעדים</div>         <div class="hc-val" id="hc-steps">הזן</div></div>
+            <div class="hc" onclick="openOv('ov-walkdist')">   <div class="hc-icon">📍</div><div class="hc-label">מרחק הליכה</div>   <div class="hc-val" id="hc-walkdist">הזן</div></div>
+            <div class="hc" onclick="openOv('ov-swimdist')">   <div class="hc-icon">🏊</div><div class="hc-label">מרחק שחייה</div>   <div class="hc-val" id="hc-swimdist">הזן</div></div>
+            <div class="hc" onclick="openOv('ov-swimmin')">    <div class="hc-icon">⏱️</div><div class="hc-label">זמן שחייה</div>    <div class="hc-val" id="hc-swimmin">הזן</div></div>
+            <div class="hc" onclick="openOv('ov-actcal')">     <div class="hc-icon">🔥</div><div class="hc-label">קל׳ פעילות</div>  <div class="hc-val" id="hc-actcal">הזן</div></div>
           </div>
+        </div>
+      </div>
+      <!-- SCROLLABLE FOOD LIST -->
+      <div class="log-scroll">
+        <div class="section-card">
+          <div class="sc-head">
+            <div class="sc-title">🍽️ אוכל ושתייה</div>
+            <button class="sc-add" onclick="openOv('ov-food')">+ הוסף</button>
+          </div>
+          <div id="food-list" class="item-list"></div>
         </div>
       </div>
     </div>
@@ -429,7 +441,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.2 · 2026-04-12 07:19 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.3 · 2026-04-12 20:04 UTC</p>
           </div>
         </div>
       </div>
@@ -781,19 +793,31 @@ function renderLog(){
   }
   var rv=document.getElementById('ring-val');if(rv)rv.textContent=rnd(inn);
   var hs=document.getElementById('hero-stats');
+  /* net = inn - totalOut. Negative = burning more than eating = good. */
+  var netCls = net < -50 ? 'g' : net > 200 ? 'r' : 'a';
+  var netSign = net > 0 ? '+' : '';
   if(hs)hs.innerHTML='<div class="stat-row"><span class="stat-label">נשרף</span><span class="stat-val g">−'+rnd(totalOut)+'</span></div>'+
-    '<div class="stat-row"><span class="stat-label">מאזן</span><span class="stat-val '+(net>200?'r':net<-50?'g':'a')+'">'+(net>=0?'+':'')+rnd(net)+'</span></div>'+
+    '<div class="stat-row"><span class="stat-label">מאזן</span><span class="stat-val '+netCls+'">'+(netSign)+rnd(net)+'</span></div>'+
     '<div class="stat-row"><span class="stat-label">יעד</span><span class="stat-val">'+goalCal+' קק"ל</span></div>';
 
-  var deficit=totalOut-inn;
-  var db=document.getElementById('deficit-banner');
-  if(db&&(inn>0||totalOut>0)){
-    var cls,txt;
-    if(deficit>=GOAL.deficit){cls='good';txt='✅ גרעון '+rnd(deficit)+' קק"ל — בקצב הזה תוריד כ-'+(deficit*7/7700).toFixed(2)+' ק"ג בשבוע';}
-    else if(deficit>0){cls='warn';txt='⚡ גרעון '+rnd(deficit)+' קק"ל — חסרים עוד '+rnd(GOAL.deficit-deficit)+' קק"ל ליעד';}
-    else{cls='bad';txt='⚠️ עודף '+rnd(-deficit)+' קק"ל — הגבר פעילות או הפחת צריכה';}
-    db.innerHTML='<div class="def-banner '+cls+'">'+txt+'</div>';
-  }else if(db)db.innerHTML='';
+  /* deficit = totalOut - inn. Positive = burning more than eating = good. */
+  var deficit = totalOut - inn;
+  var db = document.getElementById('deficit-banner');
+  if(db && (inn > 0 || totalOut > 0)){
+    var cls, txt;
+    if(deficit >= GOAL.deficit){
+      cls='good';
+      txt='✅ גרעון ' + rnd(deficit) + ' קק"ל — בקצב הזה תוריד כ-' + (deficit*7/7700).toFixed(2) + ' ק"ג בשבוע';
+    } else if(deficit > 0){
+      cls='warn';
+      txt='⚡ גרעון ' + rnd(deficit) + ' קק"ל — חסרים עוד ' + rnd(GOAL.deficit - deficit) + ' קק"ל ליעד';
+    } else {
+      /* net is positive = eating more than burning = bad = red */
+      cls='bad';
+      txt='⚠️ עודף ' + rnd(-deficit) + ' קק"ל — הגבר פעילות או הפחת צריכה';
+    }
+    db.innerHTML = '<div class="def-banner ' + cls + '">' + txt + '</div>';
+  } else if(db) db.innerHTML = '';
 
   renderActivityCards();
   var wi=document.getElementById('weight-input');if(wi)wi.value=dd(curD).weight||'';
@@ -980,9 +1004,14 @@ var advRangeDays = 7; /* 0 = custom */
 function setRange(days, btn) {
   advRangeDays = days;
   document.querySelectorAll('.range-btn').forEach(function(b){ b.classList.remove('active'); });
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
   var cr = document.getElementById('custom-range');
   if(cr) cr.style.display = days === 0 ? 'flex' : 'none';
+  /* Reset tip/plan panels when range changes so they repopulate */
+  var tips = document.getElementById('adv-tips');
+  var plan = document.getElementById('adv-plan');
+  if(tips) tips.innerHTML = '';
+  if(plan) plan.innerHTML = '';
   renderAdv();
 }
 
@@ -1031,7 +1060,7 @@ function renderAdv(){
   if(atc)atc.innerHTML=
     '<div class="adv-metric"><div class="adv-metric-label">ממוצע יומי נכנס</div><div class="adv-metric-val" style="color:var(--blue)">'+avgIn+'</div></div>'+
     '<div class="adv-metric"><div class="adv-metric-label">ממוצע יומי נשרף</div><div class="adv-metric-val" style="color:var(--green)">'+avgOut+'</div></div>'+
-    '<div class="adv-metric"><div class="adv-metric-label">גרעון ממוצע</div><div class="adv-metric-val" style="color:'+(avgDef>=GOAL.deficit?'var(--green)':'var(--amber)')+'">'+(avgDef>=0?'+':'')+rnd(avgDef)+'</div></div>'+
+    '<div class="adv-metric"><div class="adv-metric-label">גרעון ממוצע</div><div class="adv-metric-val" style="color:'+(avgDef>=GOAL.deficit?'var(--green)':avgDef<0?'var(--red)':'var(--amber)')+'">'+(avgDef>0?'+':'')+rnd(avgDef)+'</div></div>'+
     '<div class="adv-metric"><div class="adv-metric-label">'+(weightDiff?'שינוי משקל':'ירידה/שבוע')+'</div><div class="adv-metric-val" style="color:var(--green-mid)">'+(weightDiff?(weightDiff>0?'+':'')+weightDiff+' ק"ג':weeklyLoss+' ק"ג')+'</div></div>';
   var mHtml='<div class="adv-card '+(avgDef>=GOAL.deficit?'highlight':'')+'"><h3>סיכום '+days.length+' ימים <span class="adv-tag '+(avgDef>0?'g':'r')+'">'+(avgDef>=0?'גרעון':'עודף')+'</span></h3><p>'+onTarget+' מתוך '+days.length+' ימים עמדת ביעד.<br>'+(avgDef>=GOAL.deficit?'בקצב זה תוריד כ-'+weeklyLoss+' ק"ג בשבוע!':'צריך לגדיל גרעון ב-'+rnd(GOAL.deficit-avgDef)+' קק"ל.')+'</p></div>';
   if(avgOut<300)mHtml+='<div class="adv-card warn-card"><h3>הגדל פעילות <span class="adv-tag a">חשוב</span></h3><p>שריפה ממוצעת נמוכה. הוסף 30 דק\' הליכה ביום.</p></div>';
