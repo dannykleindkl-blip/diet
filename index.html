@@ -206,6 +206,20 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 /* Version badge */
 .version-badge{position:fixed;bottom:8px;left:10px;font-size:10px;color:var(--faint);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:2px 8px;z-index:999;pointer-events:none;}
 
+/* ══ RANGE BAR ══ */
+.range-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);}
+.range-btn{background:none;border:1px solid var(--border);border-radius:99px;padding:6px 16px;font-size:13px;font-family:'Heebo',sans-serif;color:var(--muted);cursor:pointer;transition:.15s;}
+.range-btn:hover{border-color:var(--border2);color:var(--text2);}
+.range-btn.active{background:var(--text);color:var(--bg);border-color:var(--text);}
+#custom-range input[type="date"]{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-xs);padding:6px 10px;font-size:13px;font-family:'Heebo',sans-serif;color:var(--text);outline:none;}
+
+/* ══ TOGGLE BUTTON ══ */
+.toggle-btn{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 16px;font-size:14px;font-family:'Heebo',sans-serif;color:var(--text2);cursor:pointer;text-align:right;transition:.15s;}
+.toggle-btn:hover{background:var(--surface2);border-color:var(--border2);}
+
+/* ══ MOBILE DATE BOLD ══ */
+.mh-date strong{font-weight:700;color:var(--text);}
+
 /* ══ RESPONSIVE ══ */
 @media (max-width:768px){
   body{overflow:hidden;}
@@ -255,7 +269,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 
   <header class="mobile-header">
     <div class="mh-title">מאזן<span class="dot">.</span></div>
-    <div class="mh-date" id="mh-date" onclick="openOv('ov-date')">היום ›</div>
+    <input type="date" id="mh-date-picker" style="position:absolute;opacity:0;width:0;height:0;" onchange="setDateFromPicker()"/><div class="mh-date" id="mh-date" onclick="triggerDatePicker()"><strong id="mh-date-text">היום</strong></div>
   </header>
 
   <main class="main-content">
@@ -290,7 +304,6 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           <div class="section-card">
             <div class="sc-head">
               <div class="sc-title">⌚ Apple Watch</div>
-              <button class="sc-link" onclick="openOv('ov-shortcut')">הגדר קיצור ›</button>
             </div>
             <div class="health-grid">
               <div class="hc" onclick="openOv('ov-steps')">      <div class="hc-icon">🚶</div><div class="hc-label">צעדים</div>         <div class="hc-val" id="hc-steps">הזן</div></div>
@@ -339,10 +352,29 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 
     <!-- TAB 2: ANALYSIS -->
     <div id="t2" class="tab-panel" style="display:none">
+      <!-- Range selector -->
+      <div class="range-bar">
+        <button class="range-btn active" onclick="setRange(7,this)">7 ימים</button>
+        <button class="range-btn" onclick="setRange(30,this)">30 ימים</button>
+        <button class="range-btn" onclick="setRange(0,this)">טווח חופשי</button>
+        <div id="custom-range" style="display:none;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <input type="date" id="range-from" onchange="renderAdv()"/>
+          <span style="color:var(--muted);font-size:13px">עד</span>
+          <input type="date" id="range-to" onchange="renderAdv()"/>
+        </div>
+      </div>
       <div id="adv-summary-cards" class="adv-top-cards"></div>
       <div class="adv-cols">
         <div id="adv-main"></div>
-        <div id="adv-side"></div>
+        <div id="adv-side">
+          <!-- Tips & plan hidden by default, shown on request -->
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="toggle-btn" onclick="toggleSection('adv-tips','הצג טיפים','הסתר טיפים',this)">הצג טיפים 💡</button>
+            <div id="adv-tips" style="display:none"></div>
+            <button class="toggle-btn" onclick="toggleSection('adv-plan','הצג תוכנית ארוחות','הסתר תוכנית',this)">הצג תוכנית ארוחות 📅</button>
+            <div id="adv-plan" style="display:none"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -389,6 +421,10 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
             <button class="export-btn" onclick="exportJSON()">📦 גיבוי JSON</button>
             <button class="export-btn danger" onclick="clearAll()">🗑️ מחק הכל</button>
           </div>
+          <div class="set-card" style="margin-top:14px">
+            <h3 class="set-card-title">גרסת אפליקציה</h3>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v2.9 · 2026-04-12 06:46 UTC</p>
+          </div>
         </div>
       </div>
     </div>
@@ -410,7 +446,6 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   </nav>
 </div>
 
-<div class="version-badge">v2.8 · 2026-04-11 20:54 UTC</div>
 
 <!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -421,10 +456,12 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 <div class="overlay" id="ov-food" onclick="closeOv('ov-food')"><div class="sheet" onclick="sp(event)">
   <div class="sheet-hdr"><div class="sheet-title">הוסף אוכל / שתייה</div><button class="sheet-close" onclick="closeOv('ov-food')">✕</button></div>
   <div class="sh-note">כתוב בעברית חופשית — הקלוריות יחושבו אוטומטית</div>
-  <div class="field"><label>מה אכלת?</label><input type="text" id="f-text" placeholder="דוגמה: 2 ביצים עם טוסט ואבוקדו" oninput="autoEstimate()"/></div>
+  <div class="field"><label>מה אכלת?</label><textarea id="f-text" rows="3" placeholder="דוגמה:
+2 ביצים עם טוסט ואבוקדו
+קפה שחור" oninput="autoEstimate()" style="resize:vertical;min-height:70px;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-xs);width:100%;font-size:15px;font-family:Heebo,sans-serif;color:var(--text);outline:none;line-height:1.5;"></textarea></div>
   <div class="fields-row">
     <div class="field"><label>קלוריות</label><input type="number" id="f-cal" inputmode="numeric" placeholder="אוטומטי"/></div>
-    <div class="field"><label>ארוחה</label><select id="f-meal"><option>ארוחת בוקר</option><option>ארוחת צהריים</option><option>ארוחת ערב</option><option>חטיף</option><option>שתייה</option></select></div>
+    <div class="field"><label>ארוחה</label><select id="f-meal"><option>ארוחת בוקר</option><option>ארוחת צהריים</option><option>ארוחת ערב</option><option>חטיף</option><option>נשנוש לילי</option><option>שתייה</option></select></div>
   </div>
   <button class="sh-submit" onclick="addFood()">הוסף</button>
 </div></div>
@@ -703,10 +740,20 @@ function updateDateLabels(){
   var isT=curD===todayStr();
   var d=new Date(curD+'T12:00:00');
   var lbl=isT?'היום':HE_DF[d.getDay()]+', '+d.getDate()+' '+HE_M[d.getMonth()];
-  var mhd=document.getElementById('mh-date');
+  var mhdt=document.getElementById('mh-date-text');
   var ddbl=document.getElementById('ddb-label');
-  if(mhd)mhd.textContent=lbl+' ›';
+  if(mhdt)mhdt.textContent=lbl;
   if(ddbl)ddbl.textContent=lbl;
+}
+
+/* Native date picker trigger */
+function triggerDatePicker(){
+  var picker=document.getElementById('mh-date-picker');
+  if(picker){ picker.value=curD; picker.showPicker ? picker.showPicker() : picker.click(); }
+}
+function setDateFromPicker(){
+  var v=document.getElementById('mh-date-picker').value;
+  if(v){ curD=v; updateDateLabels(); renderLog(); }
 }
 function shiftDay(delta){
   var d=new Date(curD+'T12:00:00');d.setDate(d.getDate()+delta);
@@ -921,8 +968,49 @@ function prevM(){calM--;if(calM<0){calM=11;calY--;}renderCal();}
 function nextM(){calM++;if(calM>11){calM=0;calY++;}renderCal();}
 
 /* ══ Analysis ══ */
+/* ══ RANGE STATE ══ */
+var advRangeDays = 7; /* 0 = custom */
+
+function setRange(days, btn) {
+  advRangeDays = days;
+  document.querySelectorAll('.range-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  var cr = document.getElementById('custom-range');
+  if(cr) cr.style.display = days === 0 ? 'flex' : 'none';
+  renderAdv();
+}
+
+function toggleSection(id, showLbl, hideLbl, btn) {
+  var el = document.getElementById(id);
+  if(!el) return;
+  var hidden = el.style.display === 'none';
+  el.style.display = hidden ? 'block' : 'none';
+  btn.textContent = hidden ? hideLbl : showLbl + (id==='adv-tips'?' 💡':' 📅');
+  if(hidden && el.innerHTML === '') {
+    /* Populate on first open */
+    if(id === 'adv-tips') {
+      el.innerHTML = '<div class="adv-card"><h3>💡 טיפים לירידה במשקל</h3><p>• 2–3 ליטר מים ביום<br>• 8,000+ צעדים = ~320 קק"ל<br>• שינה 7–8 שעות<br>• חלבון בכל ארוחה<br>• אכול לאט ובלי מסכים</p></div>';
+    } else if(id === 'adv-plan') {
+      el.innerHTML = '<div class="adv-card"><h3>📅 תוכנית ל-3 ימים</h3>' +
+        '<div class="plan-day"><h4>יום 1</h4><div class="plan-row">בוקר: ביצים + ירקות — 280 קק"ל</div><div class="plan-row">צהריים: עוף + קינואה — 480 קק"ל</div><div class="plan-row">ערב: דג + ירקות — 350 קק"ל</div></div>' +
+        '<div class="plan-day"><h4>יום 2</h4><div class="plan-row">בוקר: יוגורט יווני + פירות — 260 קק"ל</div><div class="plan-row">צהריים: סלט טונה + לחם מלא — 400 קק"ל</div><div class="plan-row">ערב: מרק עוף — 280 קק"ל</div></div>' +
+        '<div class="plan-day"><h4>יום 3</h4><div class="plan-row">בוקר: שיבולת שועל + בננה — 300 קק"ל</div><div class="plan-row">צהריים: עוף + אורז מלא — 500 קק"ל</div><div class="plan-row">ערב: חביתה + ירקות — 260 קק"ל</div></div></div>';
+    }
+  }
+}
+
 function renderAdv(){
-  var days=Object.keys(DB).sort().slice(-30);
+  /* Determine date range based on advRangeDays setting */
+  var allDays = Object.keys(DB).sort();
+  var days;
+  if(advRangeDays === 0) {
+    var fromEl=document.getElementById('range-from'), toEl=document.getElementById('range-to');
+    var from = fromEl && fromEl.value ? fromEl.value : allDays[0];
+    var to   = toEl   && toEl.value   ? toEl.value   : todayStr();
+    days = allDays.filter(function(d){ return d >= from && d <= to; });
+  } else {
+    days = allDays.slice(-advRangeDays);
+  }
   var ac=document.getElementById('adv-main'),as=document.getElementById('adv-side'),atc=document.getElementById('adv-summary-cards');
   if(!ac)return;
   if(!days.length){ac.innerHTML='<div class="adv-card"><h3>אין עדיין נתונים</h3><p>הזן לפחות יום אחד.</p></div>';return;}
@@ -941,9 +1029,8 @@ function renderAdv(){
     '<div class="adv-metric"><div class="adv-metric-label">'+(weightDiff?'שינוי משקל':'ירידה/שבוע')+'</div><div class="adv-metric-val" style="color:var(--green-mid)">'+(weightDiff?(weightDiff>0?'+':'')+weightDiff+' ק"ג':weeklyLoss+' ק"ג')+'</div></div>';
   var mHtml='<div class="adv-card '+(avgDef>=GOAL.deficit?'highlight':'')+'"><h3>סיכום '+days.length+' ימים <span class="adv-tag '+(avgDef>0?'g':'r')+'">'+(avgDef>=0?'גרעון':'עודף')+'</span></h3><p>'+onTarget+' מתוך '+days.length+' ימים עמדת ביעד.<br>'+(avgDef>=GOAL.deficit?'בקצב זה תוריד כ-'+weeklyLoss+' ק"ג בשבוע!':'צריך לגדיל גרעון ב-'+rnd(GOAL.deficit-avgDef)+' קק"ל.')+'</p></div>';
   if(avgOut<300)mHtml+='<div class="adv-card warn-card"><h3>הגדל פעילות <span class="adv-tag a">חשוב</span></h3><p>שריפה ממוצעת נמוכה. הוסף 30 דק\' הליכה ביום.</p></div>';
-  mHtml+='<div class="adv-card"><h3>📅 תוכנית ל-3 ימים</h3><div class="plan-day"><h4>יום 1</h4><div class="plan-row">בוקר: ביצים + ירקות — 280 קק"ל</div><div class="plan-row">צהריים: עוף + קינואה — 480 קק"ל</div><div class="plan-row">ערב: דג + ירקות — 350 קק"ל</div></div><div class="plan-day"><h4>יום 2</h4><div class="plan-row">בוקר: יוגורט יווני + פירות — 260 קק"ל</div><div class="plan-row">צהריים: סלט טונה + לחם מלא — 400 קק"ל</div><div class="plan-row">ערב: מרק עוף — 280 קק"ל</div></div><div class="plan-day"><h4>יום 3</h4><div class="plan-row">בוקר: שיבולת שועל + בננה — 300 קק"ל</div><div class="plan-row">צהריים: עוף + אורז מלא — 500 קק"ל</div><div class="plan-row">ערב: חביתה + ירקות — 260 קק"ל</div></div></div>';
   ac.innerHTML=mHtml;
-  if(as)as.innerHTML='<div class="adv-card"><h3>💡 טיפים</h3><p>• 2–3 ליטר מים ביום<br>• 8,000+ צעדים = ~320 קק"ל<br>• שינה 7–8 שעות<br>• חלבון בכל ארוחה</p></div><div class="adv-card"><h3>⌚ iOS Shortcut URL</h3><div class="shortcut-url">https://dannykleindkl-blip.github.io/diet/?date=[תאריך]&steps=[צעדים]&walkdist=[ק"מ]&actcal=[קל׳]&swimmin=[דק׳]&swimdist=[מ׳]</div></div>';
+  /* Tips and plan are now toggled on demand — not rendered here */
 }
 
 /* ══ Tabs ══ */
