@@ -443,7 +443,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.7 · 2026-04-13 13:38 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.8 · 2026-04-13 19:13 UTC</p>
           </div>
         </div>
       </div>
@@ -544,6 +544,8 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 </div></div>
 
 <script>
+console.log('[מאזן] App Started — v3.8');
+
 /* ══════════════════════════════════════════
    מאזן v2.3 — all JS inline, no external app.js
    ══════════════════════════════════════════ */
@@ -826,11 +828,13 @@ function load(){
   handleURLParams();
   updateDateLabels();
   renderLog(); /* UI is live and interactive here */
+  console.log('[מאזן] UI Rendered from localStorage');
 }
 
 /* Called after the browser has painted the first frame.
    All network activity lives here — never in load(). */
 function syncWithCloud(){
+  console.log('[מאזן] syncWithCloud started — network calls begin now');
   fetchProfile(function(){
     applyGoalToUI();
     renderLog();
@@ -1249,7 +1253,6 @@ function renderAdvFromDB(fromDate, toDate){
   if(avgOut<300)mHtml+='<div class="adv-card warn-card"><h3>הגדל פעילות <span class="adv-tag a">חשוב</span></h3><p>שריפה ממוצעת נמוכה. הוסף 30 דק\' הליכה ביום.</p></div>';
   ac.innerHTML=mHtml;
   /* Tips and plan are now toggled on demand — not rendered here */
-  } /* end renderAdvFromDB */
 }
 
 /* ══ Tabs ══ */
