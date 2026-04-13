@@ -1,12 +1,12 @@
 /* ══════════════════════════════════════════
-   מאזן – Service Worker v2
+   מאזן – Service Worker v3
    ══════════════════════════════════════════ */
 
-const CACHE_NAME  = 'mazan-v26';
+const CACHE_NAME  = 'mazan-v27';
 const WORKER_HOST = 'mazan-backend.danny-klein-dkl.workers.dev';
 
-/* Only cache files that actually exist.
-   app.js does NOT exist — all logic is in index.html. */
+/* Only files that actually exist in the repo.
+   app.js does NOT exist — all JS is inside index.html. */
 const ASSETS = [
   './',
   './index.html',
@@ -15,7 +15,6 @@ const ASSETS = [
   './icons/icon-512.png',
 ];
 
-/* Install: cache local assets */
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -24,7 +23,6 @@ self.addEventListener('install', event => {
   );
 });
 
-/* Activate: clear old caches */
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
@@ -35,25 +33,26 @@ self.addEventListener('activate', event => {
   );
 });
 
-/* Fetch strategy:
-   - Cloudflare Worker API  → Network Only (never cache dynamic data)
-   - Google Fonts           → Network first, cache fallback
-   - Local assets           → Cache first, network fallback
-*/
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  /* NETWORK ONLY: Cloudflare Worker API calls */
+  /* ── FIX 3: Cloudflare Worker API → bypass SW completely.
+     Pass straight through to the network. The SW must never
+     cache, queue, or interfere with dynamic API responses. ── */
   if (url.hostname === WORKER_HOST) {
-    event.respondWith(fetch(event.request).catch(() =>
-      new Response(JSON.stringify({ error: 'offline', status: 'not_found' }), {
-        headers: { 'Content-Type': 'application/json' }
+    event.respondWith(
+      fetch(event.request).catch(function() {
+        /* Network down — return a safe offline JSON response */
+        return new Response(
+          JSON.stringify({ error: 'offline', status: 'not_found' }),
+          { headers: { 'Content-Type': 'application/json' } }
+        );
       })
-    ));
-    return;
+    );
+    return; /* ← critical: stop here, no cache logic runs */
   }
 
-  /* NETWORK FIRST: Google Fonts */
+  /* Google Fonts — network first, cache fallback */
   if (url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com')) {
     event.respondWith(
       fetch(event.request)
@@ -67,7 +66,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  /* CACHE FIRST: local assets */
+  /* Local assets — cache first, network fallback */
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;

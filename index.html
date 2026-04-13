@@ -443,7 +443,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.6 · 2026-04-13 06:52 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.7 · 2026-04-13 13:38 UTC</p>
           </div>
         </div>
       </div>
@@ -594,22 +594,23 @@ var WORKER_URL = 'https://mazan-backend.danny-klein-dkl.workers.dev';
 
 /* Timeout helper — races fetch against a 3-second deadline */
 function fetchWithTimeout(url, options, ms) {
+  /* 2-second hard deadline — never blocks the UI longer than this */
   var timeout = new Promise(function(_, reject) {
-    setTimeout(function(){ reject(new Error('timeout after ' + ms + 'ms')); }, ms);
+    setTimeout(function(){ reject(new Error('timeout')); }, ms || 2000);
   });
   return Promise.race([fetch(url, options), timeout]);
 }
 
 function cloudGet(params, onData, onMiss) {
   var url = WORKER_URL + '/?' + params + '&t=' + Date.now();
-  fetchWithTimeout(url, { cache: 'no-store' }, 3000)
+  fetchWithTimeout(url, { cache: 'no-store' }, 2000)
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(d.error || d.status === 'not_found'){ if(onMiss) onMiss(d.error || d.status); return; }
       if(onData) onData(d);
     })
     .catch(function(e){
-      console.warn('[מאזן] cloud GET failed/timeout:', e.message);
+      console.warn('[מאזן] cloud GET failed:', e.message); /* never alert() */
       showOfflineBadge(true);
       if(onMiss) onMiss(e.message);
     });
@@ -816,24 +817,27 @@ function applyGoalToUI() {
 }
 
 function load(){
-  /* STEP 1: Restore localStorage synchronously — always fast, never blocks */
+  /* PURE LOCAL — zero network calls here. UI is always painted
+     from localStorage before any cloud contact is attempted. */
   try{ DB=JSON.parse(localStorage.getItem('mz4_db')||'{}'); }catch(e){ DB={}; }
   try{ Object.assign(GOAL, JSON.parse(localStorage.getItem('mz4_goal')||'{}')); }catch(e){}
   applyGoalToUI();
   var n=new Date(); calY=n.getFullYear(); calM=n.getMonth();
   handleURLParams();
   updateDateLabels();
+  renderLog(); /* UI is live and interactive here */
+}
 
-  /* STEP 2: Render from cache immediately — UI is live before any network call */
-  renderLog();
-
-  /* STEP 3: Cloud fetches are fully async, fire-and-forget style.
-     If they timeout or fail, the app stays on localStorage data.
-     The timeout in cloudGet (3s) guarantees we never hang. */
-  setTimeout(function() {
-    fetchProfile(function() { applyGoalToUI(); renderLog(); });
-    fetchDay(todayStr(), function() { renderLog(); });
-  }, 0); /* defer to next tick so initial render is never delayed */
+/* Called after the browser has painted the first frame.
+   All network activity lives here — never in load(). */
+function syncWithCloud(){
+  fetchProfile(function(){
+    applyGoalToUI();
+    renderLog();
+  });
+  fetchDay(todayStr(), function(){
+    renderLog();
+  });
 }
 
 function saveGoal(){
@@ -1273,18 +1277,31 @@ function dlFile(content,filename,type){var a=document.createElement('a');a.href=
 function clearAll(){if(confirm('למחוק את כל הנתונים?')){DB={};localStorage.removeItem('mz4_db');renderLog();alert('נמחק.');}}
 
 /* ══ INIT ══ */
-load();
+load(); /* paints UI from localStorage synchronously */
+
+/* After first paint, schedule cloud sync.
+   requestAnimationFrame ensures the browser has rendered the frame first,
+   then setTimeout(0) pushes network calls to the next task queue slot. */
+requestAnimationFrame(function() {
+  setTimeout(syncWithCloud, 0);
+});
 
 /* FIX 3: re-sync from cloud every time the app becomes visible.
    This fires when the user taps the PWA icon, switches back from
    another app, or wakes the screen — so data is always fresh.    */
-/* Throttle visibility sync — max once per 5 minutes */
-var lastCloudSync = 0;
+/* Visibility sync — only fires if app was in background 10+ minutes.
+   Records when the app went hidden so we can measure real background time. */
+var lastCloudSync  = 0;
+var hiddenAt       = 0;
 document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'hidden') {
+    hiddenAt = Date.now();
+  }
   if (document.visibilityState === 'visible') {
-    var now = Date.now();
-    if (now - lastCloudSync > 5 * 60 * 1000) {
-      lastCloudSync = now;
+    var backgroundTime = Date.now() - hiddenAt;
+    var tenMinutes     = 10 * 60 * 1000;
+    if (hiddenAt > 0 && backgroundTime > tenMinutes) {
+      lastCloudSync = Date.now();
       fetchDay(todayStr(), function() { renderLog(); });
     }
   }
