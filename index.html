@@ -443,7 +443,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.4 · 2026-04-12 20:22 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.5a · 2026-04-13 06:33 UTC</p>
           </div>
         </div>
       </div>
@@ -466,6 +466,12 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
   </nav>
 </div>
 
+<!-- Loading spinner overlay -->
+<div id="loading-overlay" style="display:none;position:fixed;inset:0;background:rgba(250,250,248,.8);z-index:800;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+  <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;"></div>
+  <div style="font-size:13px;color:var(--muted);font-family:Heebo,sans-serif">טוען נתונים מהענן...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
 <!-- OVERLAYS -->
 <div class="overlay" id="ov-date" onclick="closeOv('ov-date')"><div class="sheet" onclick="sp(event)">
@@ -541,7 +547,7 @@ var curD=todayStr(), calY, calM;
 
 function todayStr(){var d=new Date();var yyyy=d.getFullYear();var mm=String(d.getMonth()+1).padStart(2,'0');var dd2=String(d.getDate()).padStart(2,'0');return yyyy+'-'+mm+'-'+dd2;}
 function dd(d){if(!DB[d])DB[d]={foods:[],health:{},weight:null};return DB[d];}
-function persist(){try{localStorage.setItem('mz4_db',JSON.stringify(DB));}catch(e){}}
+/* persist() defined in load block */
 function rnd(x){return Math.round(x);}
 
 var HE_M=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
@@ -574,51 +580,134 @@ function showToast(msg){
    ══════════════════════════════════════════ */
 var WORKER_URL = 'https://mazan-backend.danny-klein-dkl.workers.dev';
 
-/* POST one day's health data to the Worker */
-function syncToCloud(date, health) {
-  var payload = {
+/* ══════════════════════════════════════════════════════════
+   CLOUD API — thin wrappers around the Worker endpoints
+   All calls are fire-and-forget or callback-based.
+   Cloudflare KV is the primary source of truth.
+   localStorage is a write-through cache for offline resilience.
+   ══════════════════════════════════════════════════════════ */
+
+function cloudGet(params, onData, onMiss) {
+  var url = WORKER_URL + '/?' + params + '&t=' + Date.now();
+  fetch(url, { cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.error){ if(onMiss) onMiss(d.error); return; }
+      if(onData) onData(d);
+    })
+    .catch(function(e){ console.warn('[מאזן] cloud GET failed:', e.message); if(onMiss) onMiss(e.message); });
+}
+
+function cloudPost(params, body, onDone) {
+  var url = WORKER_URL + (params ? '/?' + params : '/');
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){ console.log('[מאזן] cloud POST ok:', JSON.stringify(d)); if(onDone) onDone(d); })
+  .catch(function(e){ console.warn('[מאזן] cloud POST failed:', e.message); });
+}
+
+/* Map cloud day record → internal DB[date] structure */
+function cloudDayToDB(date, data) {
+  /* Handle your worker's {steps:0, status:"not_found"} — skip silently */
+  if(!data || data.status === 'not_found' || data.error) return;
+  if(!DB[date]) DB[date] = { foods: [], health: {}, weight: null };
+  var h = DB[date].health;
+  /* Only overwrite with cloud value if it's non-null and non-zero
+     (avoids clobbering manually-entered data with 0s from the cloud) */
+  if(data.steps)    h.steps    = data.steps;
+  if(data.walkdist) h.walkDist = data.walkdist;
+  if(data.actcal)   h.actCal   = data.actcal;
+  if(data.swimmin)  h.swimMin  = data.swimmin;
+  if(data.swimdist) h.swimDist = data.swimdist;
+  if(data.weight)   DB[date].weight = data.weight;
+  /* Meals stored by cloud as {text,cal,meal} — same shape as local foods */
+  if(Array.isArray(data.meals) && data.meals.length) DB[date].foods = data.meals;
+}
+
+/* Lazy-load a single date from cloud, merge into DB, callback when ready */
+function fetchDay(date, onDone) {
+  cloudGet('date=' + date, function(data) {
+    cloudDayToDB(date, data);
+    persist();
+    if(onDone) onDone();
+  }, function() {
+    /* 404 or offline — that's fine, we just have no cloud data yet */
+    if(onDone) onDone();
+  });
+}
+
+/* Lazy-load profile from cloud */
+function fetchProfile(onDone) {
+  cloudGet('key=profile', function(data) {
+    Object.assign(GOAL, {
+      cal:      data.cal      || GOAL.cal,
+      deficit:  data.deficit  || GOAL.deficit,
+      weight:   data.weight   || GOAL.weight,
+      height:   data.height   || GOAL.height,
+      age:      data.age      || GOAL.age,
+      sex:      data.sex      || GOAL.sex,
+      activity: data.activity || GOAL.activity,
+    });
+    applyGoalToUI();
+    try{ localStorage.setItem('mz4_goal', JSON.stringify(GOAL)); }catch(e){}
+    if(onDone) onDone();
+  }, function() { if(onDone) onDone(); });
+}
+
+/* Push profile to cloud (fire-and-forget) */
+function pushProfile() {
+  cloudPost('key=profile', GOAL);
+}
+
+/* Push meals for a date to cloud (fire-and-forget) */
+function pushMeals(date) {
+  cloudPost('key=meal&date=' + date, { meals: DD(date).foods || [] });
+}
+
+/* Push weight for a date to cloud */
+function pushWeight(date) {
+  cloudPost('key=weight&date=' + date, { weight: DB[date] && DB[date].weight });
+}
+
+/* Push iOS Shortcut health data to cloud */
+function pushHealth(date, health) {
+  cloudPost('', {
     date:     date,
     steps:    health.steps    || 0,
     walkdist: health.walkDist || 0,
     actcal:   health.actCal   || 0,
     swimmin:  health.swimMin  || 0,
     swimdist: health.swimDist || 0,
-  };
-  fetch(WORKER_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(payload),
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(r){ console.log('[מאזן] cloud sync OK:', JSON.stringify(r.saved)); })
-  .catch(function(e){ console.warn('[מאזן] cloud sync failed (offline?):', e.message); });
-  /* Fire-and-forget — never blocks the UI */
+  });
 }
 
-/* GET one day from the Worker and merge into local DB */
-function syncFromCloud(date, onDone) {
-  /* date must be YYYY-MM-DD — built by todayStr() using local timezone */
-  /* FIX 1: cache-buster timestamp so every fetch hits the network        */
-  /* FIX 2: cache:'no-store' bypasses the browser HTTP cache entirely     */
-  var fullURL = WORKER_URL + '/?date=' + date + '&t=' + Date.now();
-  console.log('[מאזן] syncFromCloud → URL:', fullURL);
-  fetch(fullURL, { cache: 'no-store' })
-  .then(function(r){ return r.json(); })
-  .then(function(data){
-    if(data.error) return;                        /* no cloud record yet */
-    if(!DB[date]) DB[date] = {foods:[], health:{}, weight:null};
-    var h = DB[date].health;
-    /* Only overwrite if cloud value is non-zero — keeps manual edits */
-    if(data.steps)    h.steps    = data.steps;
-    if(data.walkdist) h.walkDist = data.walkdist;
-    if(data.actcal)   h.actCal   = data.actcal;
-    if(data.swimmin)  h.swimMin  = data.swimmin;
-    if(data.swimdist) h.swimDist = data.swimdist;
+/* Legacy alias kept for any old references */
+function syncToCloud(date, health) { pushHealth(date, health); }
+function syncFromCloud(date, onDone) { fetchDay(date, onDone); }
+
+/* Fetch a date range from cloud and merge all days into DB */
+function fetchRange(from, to, onDone) {
+  showLoading(true);
+  cloudGet('from=' + from + '&to=' + to, function(data) {
+    var days = data.days || {};
+    Object.keys(days).forEach(function(d) { cloudDayToDB(d, days[d]); });
     persist();
-    console.log('[מאזן] cloud data merged for', date, JSON.stringify(h));
-    if(onDone) onDone();
-  })
-  .catch(function(e){ console.warn('[מאזן] cloud pull failed (offline?):', e.message); });
+    showLoading(false);
+    if(onDone) onDone(Object.keys(days));
+  }, function() {
+    showLoading(false);
+    if(onDone) onDone([]);
+  });
+}
+
+/* Loading overlay */
+function showLoading(show) {
+  var el = document.getElementById('loading-overlay');
+  if(el) el.style.display = show ? 'flex' : 'none';
 }
 
 /* ══════════════════════════════════════════
@@ -681,32 +770,54 @@ function handleURLParams(){
 }
 
 /* ══ Storage ══ */
-function load(){
-  try{DB=JSON.parse(localStorage.getItem('mz4_db')||'{}');}catch(e){DB={};}
-  try{Object.assign(GOAL,JSON.parse(localStorage.getItem('mz4_goal')||'{}'));}catch(e){}
+function persist(){
+  try{ localStorage.setItem('mz4_db', JSON.stringify(DB)); }catch(e){}
+}
+
+function DD(d) { return DB[d] || {}; }
+
+function applyGoalToUI() {
   ['cal','deficit','weight','height','age'].forEach(function(k){
     var el=document.getElementById('g-'+k);if(el&&GOAL[k])el.value=GOAL[k];
   });
   var gs=document.getElementById('g-sex');if(gs)gs.value=GOAL.sex||'m';
   var ga=document.getElementById('g-activity');if(ga)ga.value=GOAL.activity||1.375;
-  var n=new Date();calY=n.getFullYear();calM=n.getMonth();
+}
+
+function load(){
+  /* 1. Restore from localStorage cache instantly (offline resilience) */
+  try{ DB=JSON.parse(localStorage.getItem('mz4_db')||'{}'); }catch(e){ DB={}; }
+  try{ Object.assign(GOAL, JSON.parse(localStorage.getItem('mz4_goal')||'{}')); }catch(e){}
+  applyGoalToUI();
+
+  var n=new Date(); calY=n.getFullYear(); calM=n.getMonth();
+
+  /* 2. Handle iOS Shortcut URL params before any render */
   handleURLParams();
   updateDateLabels();
+
+  /* 3. Render immediately from cache so UI is never blank */
   renderLog();
-  /* Pull today's data from cloud in background — updates UI if newer data exists */
-  syncFromCloud(todayStr(), function(){ renderLog(); });
+
+  /* 4. Lazy-load profile + today from cloud in parallel */
+  fetchProfile(function() { applyGoalToUI(); renderLog(); });
+  fetchDay(todayStr(), function() { renderLog(); });
 }
 
 function saveGoal(){
-  GOAL.cal=parseInt(document.getElementById('g-cal').value)||1600;
-  GOAL.deficit=parseInt(document.getElementById('g-deficit').value)||500;
-  GOAL.weight=document.getElementById('g-weight').value;
-  GOAL.height=document.getElementById('g-height').value;
-  GOAL.age=document.getElementById('g-age').value;
-  GOAL.sex=document.getElementById('g-sex').value;
-  GOAL.activity=parseFloat(document.getElementById('g-activity').value)||1.375;
-  try{localStorage.setItem('mz4_goal',JSON.stringify(GOAL));}catch(e){}
-  renderLog();alert('ההגדרות נשמרו ✓');
+  GOAL.cal      = parseInt(document.getElementById('g-cal').value)      || 1600;
+  GOAL.deficit  = parseInt(document.getElementById('g-deficit').value)  || 500;
+  GOAL.weight   = document.getElementById('g-weight').value;
+  GOAL.height   = document.getElementById('g-height').value;
+  GOAL.age      = document.getElementById('g-age').value;
+  GOAL.sex      = document.getElementById('g-sex').value;
+  GOAL.activity = parseFloat(document.getElementById('g-activity').value) || 1.375;
+  /* Save locally */
+  try{ localStorage.setItem('mz4_goal', JSON.stringify(GOAL)); }catch(e){}
+  /* Push to Cloudflare KV as primary source of truth */
+  pushProfile();
+  renderLog();
+  alert('ההגדרות נשמרו ✓');
 }
 
 /* ══ Calorie calc ══ */
@@ -858,7 +969,9 @@ function addFood(){
   if(cal===0){calEl.focus();calEl.style.borderColor='#c0392b';calEl.placeholder='לא זוהה — הזן ידנית';return;}
   calEl.style.borderColor='';
   dd(curD).foods.push({text:txt,cal:cal,meal:meal});
-  persist();renderLog();closeOv('ov-food');
+  persist();
+  pushMeals(curD);   /* push meals to cloud */
+  renderLog();closeOv('ov-food');
   document.getElementById('f-text').value='';document.getElementById('f-cal').value='';
 }
 function autoEstimate(){
@@ -868,12 +981,18 @@ function autoEstimate(){
   if(cal>0){el.value=cal;el.style.borderColor='';}
   else{el.value='';el.placeholder='לא זוהה — הזן ידנית';}
 }
-function rmFood(i){dd(curD).foods.splice(i,1);persist();renderLog();}
+function rmFood(i){dd(curD).foods.splice(i,1);persist();pushMeals(curD);renderLog();}
 
 /* ══ Weight ══ */
 function saveWeight(){
   var v=parseFloat(document.getElementById('weight-input').value);
-  if(!isNaN(v)&&v>0){dd(curD).weight=v;persist();showToast('⚖️ משקל נשמר: '+v+' ק"ג');}
+  if(!isNaN(v)&&v>0){
+    dd(curD).weight=v;
+    persist();
+    pushWeight(curD);   /* push weight to cloud */
+    showToast('⚖️ משקל נשמר: '+v+' ק"ג');
+    renderLog();
+  }
 }
 
 /* ══ Health manual ══ */
@@ -968,18 +1087,25 @@ function localDateStr(offsetDays) {
   return yyyy + '-' + mm + '-' + dd2;
 }
 
-/* FIX 2: calPickDay now fetches from cloud with no-cache before rendering */
+function localDateStr(offsetDays) {
+  var d = new Date();
+  d.setDate(d.getDate() - (offsetDays || 0));
+  var yyyy = d.getFullYear();
+  var mm   = String(d.getMonth() + 1).padStart(2, '0');
+  var dd2  = String(d.getDate()).padStart(2, '0');
+  return yyyy + '-' + mm + '-' + dd2;
+}
+
+/* Tap a calendar day: show local data instantly, lazy-load from cloud */
 function calPickDay(ds) {
   curD = ds;
   updateDateLabels();
-  renderCalDetail();   /* show local data immediately while fetching */
+  renderCalDetail();
   renderLog();
-  /* Fetch fresh data for this specific historical date from Cloudflare KV */
-  syncFromCloud(ds, function() {
-    renderCalDetail();  /* re-render with cloud data once it arrives */
+  fetchDay(ds, function() {
+    renderCalDetail();
     renderLog();
-    renderCal();        /* refresh calendar dots/scores too */
-    console.log('[מאזן] calPickDay cloud sync done for', ds);
+    renderCal();
   });
 }
 function renderCalDetail(){
@@ -1039,17 +1165,34 @@ function toggleSection(id, showLbl, hideLbl, btn) {
 }
 
 function renderAdv(){
-  /* Determine date range based on advRangeDays setting */
-  var allDays = Object.keys(DB).sort();
-  var days;
+  /* Determine date range and fetch from cloud first */
+  var fromDate, toDate;
   if(advRangeDays === 0) {
     var fromEl=document.getElementById('range-from'), toEl=document.getElementById('range-to');
-    var from = fromEl && fromEl.value ? fromEl.value : allDays[0];
-    var to   = toEl   && toEl.value   ? toEl.value   : todayStr();
-    days = allDays.filter(function(d){ return d >= from && d <= to; });
+    fromDate = fromEl && fromEl.value ? fromEl.value : localDateStr(30);
+    toDate   = toEl   && toEl.value   ? toEl.value   : todayStr();
   } else {
-    days = allDays.slice(-advRangeDays);
+    fromDate = localDateStr(advRangeDays - 1);
+    toDate   = todayStr();
   }
+
+  /* Show loading, fetch range from cloud, then render */
+  var ac=document.getElementById('adv-main');
+  if(ac) ac.innerHTML='<div class="adv-card"><p style="color:var(--muted);text-align:center;padding:20px">טוען נתונים...</p></div>';
+
+  fetchRange(fromDate, toDate, function() {
+    /* Populate range-from/range-to inputs for display */
+    var fromEl=document.getElementById('range-from');
+    var toEl=document.getElementById('range-to');
+    if(fromEl && !fromEl.value) fromEl.value = fromDate;
+    if(toEl   && !toEl.value)   toEl.value   = toDate;
+    renderAdvFromDB(fromDate, toDate);
+  });
+}
+
+function renderAdvFromDB(fromDate, toDate){
+  var allDays = Object.keys(DB).sort();
+  var days = allDays.filter(function(d){ return d >= fromDate && d <= toDate; });
   var ac=document.getElementById('adv-main'),as=document.getElementById('adv-side'),atc=document.getElementById('adv-summary-cards');
   if(!ac)return;
   if(!days.length){ac.innerHTML='<div class="adv-card"><h3>אין עדיין נתונים</h3><p>הזן לפחות יום אחד.</p></div>';return;}
@@ -1070,6 +1213,7 @@ function renderAdv(){
   if(avgOut<300)mHtml+='<div class="adv-card warn-card"><h3>הגדל פעילות <span class="adv-tag a">חשוב</span></h3><p>שריפה ממוצעת נמוכה. הוסף 30 דק\' הליכה ביום.</p></div>';
   ac.innerHTML=mHtml;
   /* Tips and plan are now toggled on demand — not rendered here */
+  } /* end renderAdvFromDB */
 }
 
 /* ══ Tabs ══ */
@@ -1104,8 +1248,7 @@ load();
    another app, or wakes the screen — so data is always fresh.    */
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible') {
-    console.log('[מאזן] app visible — syncing from cloud');
-    syncFromCloud(todayStr(), function() { renderLog(); });
+    fetchDay(todayStr(), function() { renderLog(); });
   }
 });
 </script>
