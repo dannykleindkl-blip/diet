@@ -114,9 +114,20 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 .item-body{flex:1;min-width:0;}
 .item-name{font-size:13px;white-space:normal;word-break:break-word;overflow-wrap:break-word;line-height:1.4;}
 .item-sub{font-size:10px;color:var(--muted);margin-top:0;}
-.item-cal{font-size:12px;font-weight:600;flex-shrink:0;color:var(--text2);margin-top:1px;}
+.item-cal{font-size:12px;font-weight:600;flex-shrink:0;color:var(--text2);margin-top:1px;display:none;}/* cal now shown in item-sub */
 .item-del{width:22px;height:22px;border-radius:50%;background:var(--surface2);border:none;color:var(--faint);font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 .item-del:hover{color:var(--red);background:var(--red-bg);}
+.item-edit{cursor:pointer;transition:.1s;}
+.item-edit:active{opacity:.6;}
+
+/* Clarification prompt — shown when AI is unsure about portion */
+.clarify-bar{display:flex;align-items:center;gap:6px;margin:6px 0 2px;padding:8px 10px;background:var(--amber-bg);border-radius:var(--radius-xs);border:1px solid var(--amber-bg);}
+.clarify-q{font-size:12px;color:var(--amber);flex:1;}
+.clarify-btn{background:var(--surface);border:1px solid var(--border2);border-radius:99px;padding:3px 10px;font-size:12px;font-family:'Heebo',sans-serif;color:var(--text);cursor:pointer;white-space:nowrap;}
+.clarify-btn:hover{background:var(--surface2);}
+
+/* Edit mode — highlight the sheet title */
+.sheet-title.editing{color:var(--amber);}
 .empty-note{font-size:13px;color:var(--faint);padding:8px 0;}
 
 /* Calendar */
@@ -339,7 +350,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
         <div class="section-card">
           <div class="sc-head">
             <div class="sc-title">🍽️ אוכל ושתייה</div>
-            <button class="sc-add" onclick="openOv('ov-food')">+ הוסף</button>
+            <button class="sc-add" onclick="openFoodSheet()">+ הוסף</button>
           </div>
           <div id="food-list" class="item-list"></div>
         </div>
@@ -443,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v3.8 · 2026-04-13 19:13 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.0 · 2026-04-14 18:19 UTC</p>
           </div>
         </div>
       </div>
@@ -485,16 +496,42 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 </div></div>
 
 <div class="overlay" id="ov-food" onclick="closeOv('ov-food')"><div class="sheet" onclick="sp(event)">
-  <div class="sheet-hdr"><div class="sheet-title">הוסף אוכל / שתייה</div><button class="sheet-close" onclick="closeOv('ov-food')">✕</button></div>
-  <div class="sh-note">כתוב בעברית חופשית — הקלוריות יחושבו אוטומטית</div>
-  <div class="field"><label>מה אכלת?</label><textarea id="f-text" rows="3" placeholder="דוגמה:
-2 ביצים עם טוסט ואבוקדו
-קפה שחור" oninput="autoEstimate()" style="resize:vertical;min-height:70px;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-xs);width:100%;font-size:15px;font-family:Heebo,sans-serif;color:var(--text);outline:none;line-height:1.5;"></textarea></div>
-  <div class="fields-row">
-    <div class="field"><label>קלוריות</label><input type="number" id="f-cal" inputmode="numeric" placeholder="אוטומטי"/></div>
-    <div class="field"><label>ארוחה</label><select id="f-meal"><option>ארוחת בוקר</option><option>ארוחת צהריים</option><option>ארוחת ערב</option><option>חטיף</option><option>נשנוש לילי</option><option>שתייה</option></select></div>
+  <div class="sheet-hdr">
+    <div class="sheet-title" id="food-sheet-title">הוסף אוכל / שתייה</div>
+    <button class="sheet-close" onclick="cancelFoodEdit()">✕</button>
   </div>
-  <button class="sh-submit" onclick="addFood()">הוסף</button>
+
+  <!-- STEP 1: Text input + Interpret button -->
+  <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;">
+    <textarea id="f-text" rows="3"
+      placeholder="דוגמה:&#10;2 ביצים עם טוסט ואבוקדו&#10;קפה שחור"
+      style="flex:1;resize:vertical;min-height:70px;padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-xs);font-size:15px;font-family:Heebo,sans-serif;color:var(--text);outline:none;line-height:1.5;"></textarea>
+    <button id="interpret-btn" onclick="interpretMeal()"
+      style="flex-shrink:0;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius-xs);padding:10px 12px;font-size:13px;font-weight:600;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap;align-self:flex-end;">
+      חשב ›
+    </button>
+  </div>
+
+  <!-- STEP 2: Clarification questions (up to 3, shown after interpret) -->
+  <div id="clarify-area" style="display:none;margin-bottom:10px;"></div>
+
+  <!-- STEP 3: Result + Save (shown after interpret) -->
+  <div id="food-result-area" style="display:none;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:10px 12px;background:var(--green-light);border-radius:var(--radius-xs);border:1px solid var(--green-bg);">
+      <span style="font-size:13px;color:var(--green);flex:1;" id="food-cal-display">0 קק"ל</span>
+      <input type="number" id="f-cal" inputmode="numeric"
+        style="width:80px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-xs);font-size:14px;font-family:Heebo,sans-serif;background:var(--surface);color:var(--text);text-align:center;"
+        onchange="updateCalDisplay()" placeholder="קק&quot;ל"/>
+    </div>
+    <div class="field" style="margin-bottom:10px;">
+      <label>ארוחה</label>
+      <select id="f-meal" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-xs);padding:8px 11px;color:var(--text);font-size:15px;font-family:Heebo,sans-serif;outline:none;">
+        <option>ארוחת בוקר</option><option>ארוחת צהריים</option><option>ארוחת ערב</option>
+        <option>חטיף</option><option>נשנוש לילי</option><option>שתייה</option>
+      </select>
+    </div>
+    <button class="sh-submit" id="food-submit-btn" onclick="addFood()">שמור ארוחה</button>
+  </div>
 </div></div>
 
 <div class="overlay" id="ov-steps" onclick="closeOv('ov-steps')"><div class="sheet" onclick="sp(event)">
@@ -979,7 +1016,14 @@ function renderLog(){
   if(fl){
     var foods=dd(curD).foods;
     fl.innerHTML=foods.length?foods.map(function(f,i){
-      return'<div class="item"><div class="item-dot food"></div><div class="item-body"><div class="item-name">'+f.text+'</div><div class="item-sub">'+f.meal+'</div></div><div class="item-cal">'+f.cal+' קק"ל</div><button class="item-del" onclick="rmFood('+i+')">×</button></div>';
+      return '<div class="item">' +
+        '<div class="item-dot food"></div>' +
+        '<div class="item-body item-edit" onclick="editFood(' + i + ')" title="לחץ לעריכה">' +
+          '<div class="item-name">' + f.text + '</div>' +
+          '<div class="item-sub">' + f.meal + ' · ' + f.cal + ' קק&quot;ל</div>' +
+        '</div>' +
+        '<button class="item-del" onclick="rmFood(' + i + ')" title="מחק">×</button>' +
+      '</div>';
     }).join(''):'<div class="empty-note">לא נוספו ארוחות עדיין</div>';
   }
 }
@@ -999,29 +1043,283 @@ function renderActivityCards(){
 }
 
 /* ══ Food ══ */
-function addFood(){
-  var txt=document.getElementById('f-text').value.trim();
-  var meal=document.getElementById('f-meal').value;
-  if(!txt)return;
-  var calEl=document.getElementById('f-cal');
-  var manCal=parseInt(calEl.value)||0;
-  var cal=manCal>0?manCal:estimateCal(txt);
-  if(cal===0){calEl.focus();calEl.style.borderColor='#c0392b';calEl.placeholder='לא זוהה — הזן ידנית';return;}
-  calEl.style.borderColor='';
-  dd(curD).foods.push({text:txt,cal:cal,meal:meal});
+
+var editingFoodIdx = null;  /* null = new, number = editing index */
+
+/* ── Food database with specific clarification rules ────────────
+   Each rule describes ONE ingredient/item with:
+   - keys:  Hebrew/English terms to detect in the text
+   - item:  the display name used in the question
+   - questions: up to 3 specific questions, each with 2 options.
+     baseCal = estimated base calories (from estimateCal).
+     aCal / bCal = final calorie value (not delta) for that answer.
+   ─────────────────────────────────────────────────────────────── */
+var FOOD_CLARIFY = [
+  {
+    keys: ['טורטייה','טורטיה','tortilla','tortillas','wrap'],
+    item: 'טורטייה',
+    questions: [
+      { q: 'כמה טורטיות?', a: 'אחת (90 קק"ל)', aCal: 90, b: 'שתיים (180 קק"ל)', bCal: 180 },
+      { q: 'גודל הטורטייה?', a: 'קטנה (70 קק"ל)', aCal: 70, b: 'גדולה (120 קק"ל)', bCal: 120 }
+    ]
+  },
+  {
+    keys: ['קערה','bowl'],
+    item: 'קערה',
+    questions: [
+      { q: 'גודל הקערה?', a: 'קטנה', aCal: -60, b: 'גדולה', bCal: 80, isDelta: true }
+    ]
+  },
+  {
+    keys: ['ביתי','homemade','בבית'],
+    item: 'מנה ביתית',
+    questions: [
+      { q: 'גודל המנה הביתית?', a: 'קטנה', aCal: -80, b: 'גדולה', bCal: 120, isDelta: true }
+    ]
+  },
+  {
+    keys: ['וויסקי','ויסקי','whisky','whiskey','bourbon'],
+    item: 'וויסקי',
+    questions: [
+      { q: 'כמה וויסקי?', a: 'כוס קטנה (65 קק"ל)', aCal: 65, b: 'כוס גדולה (130 קק"ל)', bCal: 130 }
+    ]
+  },
+  {
+    keys: ['יין','wine'],
+    item: 'יין',
+    questions: [
+      { q: 'כמה יין?', a: 'כוס קטנה (85 קק"ל)', aCal: 85, b: 'כוס גדולה (160 קק"ל)', bCal: 160 }
+    ]
+  },
+  {
+    keys: ['בירה','beer'],
+    item: 'בירה',
+    questions: [
+      { q: 'כמה בירה?', a: 'כוס קטנה (100 קק"ל)', aCal: 100, b: 'פחית (180 קק"ל)', bCal: 180 }
+    ]
+  },
+  {
+    keys: ['פסטה','ספגטי','noodle','pasta'],
+    item: 'פסטה',
+    questions: [
+      { q: 'כמה פסטה?', a: 'מנה קטנה (250 קק"ל)', aCal: 250, b: 'מנה גדולה (450 קק"ל)', bCal: 450 }
+    ]
+  },
+  {
+    keys: ['אורז','rice'],
+    item: 'אורז',
+    questions: [
+      { q: 'כמה אורז?', a: 'חצי כוס (100 קק"ל)', aCal: 100, b: 'כוס שלמה (200 קק"ל)', bCal: 200 }
+    ]
+  },
+  {
+    keys: ['עוגה','cake'],
+    item: 'עוגה',
+    questions: [
+      { q: 'גודל הפרוסה?', a: 'קטנה (200 קק"ל)', aCal: 200, b: 'גדולה (350 קק"ל)', bCal: 350 }
+    ]
+  },
+  {
+    keys: ['שוקולד','chocolate'],
+    item: 'שוקולד',
+    questions: [
+      { q: 'כמה שוקולד?', a: 'קוביה-שתיים (50 קק"ל)', aCal: 50, b: 'חצי חפיסה (250 קק"ל)', bCal: 250 }
+    ]
+  },
+  {
+    keys: ['לחם','bread','פרוסה','toast','טוסט'],
+    item: 'לחם',
+    questions: [
+      { q: 'כמה פרוסות לחם?', a: 'פרוסה אחת (80 קק"ל)', aCal: 80, b: 'שתי פרוסות (160 קק"ל)', bCal: 160 }
+    ]
+  },
+  {
+    keys: ['ביצה','ביצים','egg','eggs'],
+    item: 'ביצים',
+    questions: [
+      { q: 'כמה ביצים?', a: 'ביצה אחת (75 קק"ל)', aCal: 75, b: 'שתי ביצים (150 קק"ל)', bCal: 150 }
+    ]
+  }
+];
+
+/* Active clarification state */
+var clarifyState = {
+  pending: [],     /* list of question objects still to ask */
+  answered: [],    /* list of {calValue} answers given */
+  baseCal: 0,      /* original estimateCal result */
+  overrideCal: null /* final cal if all questions override base */
+};
+
+/* ── interpretMeal: called when user taps "חשב ›" ── */
+function interpretMeal() {
+  var txt = document.getElementById('f-text').value.trim();
+  if (!txt) { document.getElementById('f-text').focus(); return; }
+
+  var baseCal = estimateCal(txt);
+  var lower   = txt.toLowerCase();
+
+  /* Find ALL matching clarify rules for this text (up to 3 questions total) */
+  var allQuestions = [];
+  FOOD_CLARIFY.forEach(function(rule) {
+    if (allQuestions.length >= 3) return;
+    var matched = rule.keys.some(function(k){ return lower.indexOf(k) !== -1; });
+    if (matched) {
+      rule.questions.forEach(function(q) {
+        if (allQuestions.length < 3) allQuestions.push(q);
+      });
+    }
+  });
+
+  clarifyState.pending   = allQuestions;
+  clarifyState.answered  = [];
+  clarifyState.baseCal   = baseCal;
+  clarifyState.overrideCal = null;
+
+  /* Show result area */
+  document.getElementById('food-result-area').style.display = 'block';
+
+  /* Set initial cal */
+  var initialCal = baseCal > 0 ? baseCal : 0;
+  document.getElementById('f-cal').value = initialCal || '';
+  updateCalDisplay();
+
+  /* Render first question if any */
+  renderNextQuestion();
+}
+
+function renderNextQuestion() {
+  var area = document.getElementById('clarify-area');
+  if (!area) return;
+
+  if (clarifyState.pending.length === 0) {
+    area.style.display = 'none';
+    return;
+  }
+
+  var q = clarifyState.pending[0];
+  area.style.display = 'block';
+  area.innerHTML =
+    '<div class="clarify-bar">' +
+      '<span class="clarify-q">' + q.q + '</span>' +
+      '<button class="clarify-btn" onclick="answerQuestion(0)">' + q.a + '</button>' +
+      '<button class="clarify-btn" onclick="answerQuestion(1)">' + q.b + '</button>' +
+    '</div>';
+}
+
+function answerQuestion(choice) {
+  if (clarifyState.pending.length === 0) return;
+  var q     = clarifyState.pending.shift(); /* take first question */
+  var calEl = document.getElementById('f-cal');
+  var cur   = parseInt(calEl.value) || clarifyState.baseCal || 0;
+
+  /* Apply answer */
+  var newCal;
+  if (q.isDelta) {
+    newCal = Math.max(10, cur + (choice === 0 ? q.aCal : q.bCal));
+  } else {
+    newCal = choice === 0 ? q.aCal : q.bCal;
+  }
+  calEl.value = newCal;
+  updateCalDisplay();
+
+  clarifyState.answered.push(newCal);
+
+  /* Show next question or hide */
+  renderNextQuestion();
+}
+
+function updateCalDisplay() {
+  var cal   = parseInt(document.getElementById('f-cal').value) || 0;
+  var disp  = document.getElementById('food-cal-display');
+  if (disp) disp.textContent = cal > 0 ? cal + ' קק"ל' : 'הזן קלוריות';
+}
+
+/* ── openFoodSheet: open for new entry or edit ── */
+function openFoodSheet(idx) {
+  editingFoodIdx = (idx !== undefined && idx !== null) ? idx : null;
+
+  var titleEl = document.getElementById('food-sheet-title');
+  var txtEl   = document.getElementById('f-text');
+  var calEl   = document.getElementById('f-cal');
+  var mealEl  = document.getElementById('f-meal');
+
+  /* Reset state */
+  clarifyState.pending  = [];
+  clarifyState.answered = [];
+  clarifyState.baseCal  = 0;
+  document.getElementById('clarify-area').style.display = 'none';
+
+  if (editingFoodIdx !== null) {
+    var food = dd(curD).foods[editingFoodIdx];
+    if (!food) return;
+    titleEl.textContent = 'ערוך ארוחה';
+    titleEl.classList.add('editing');
+    txtEl.value  = food.text;
+    calEl.value  = food.cal;
+    updateCalDisplay();
+    document.getElementById('food-result-area').style.display = 'block';
+    var opts = mealEl.options;
+    for (var i = 0; i < opts.length; i++) {
+      if (opts[i].text === food.meal) { mealEl.selectedIndex = i; break; }
+    }
+    document.getElementById('food-submit-btn').textContent = 'שמור שינויים';
+  } else {
+    titleEl.textContent = 'הוסף אוכל / שתייה';
+    titleEl.classList.remove('editing');
+    txtEl.value  = '';
+    calEl.value  = '';
+    document.getElementById('food-result-area').style.display = 'none';
+    document.getElementById('food-submit-btn').textContent = 'שמור ארוחה';
+  }
+
+  openOv('ov-food');
+  setTimeout(function(){ txtEl.focus(); }, 300);
+}
+
+function cancelFoodEdit() {
+  editingFoodIdx = null;
+  closeOv('ov-food');
+}
+
+/* ── addFood: final save ── */
+function addFood() {
+  var txt   = document.getElementById('f-text').value.trim();
+  var meal  = document.getElementById('f-meal').value;
+  var calEl = document.getElementById('f-cal');
+  var cal   = parseInt(calEl.value) || 0;
+
+  if (!txt) { document.getElementById('f-text').focus(); return; }
+  if (cal <= 0) {
+    /* User hasn't run interpret yet — run it first */
+    interpretMeal();
+    return;
+  }
+
+  if (editingFoodIdx !== null) {
+    dd(curD).foods[editingFoodIdx] = { text: txt, cal: cal, meal: meal };
+    editingFoodIdx = null;
+  } else {
+    dd(curD).foods.push({ text: txt, cal: cal, meal: meal });
+  }
+
   persist();
-  pushMeals(curD);   /* push meals to cloud */
-  renderLog();closeOv('ov-food');
-  document.getElementById('f-text').value='';document.getElementById('f-cal').value='';
+  pushMeals(curD);
+  renderLog();
+  closeOv('ov-food');
 }
-function autoEstimate(){
-  var txt=document.getElementById('f-text').value.trim();
-  var cal=estimateCal(txt);
-  var el=document.getElementById('f-cal');
-  if(cal>0){el.value=cal;el.style.borderColor='';}
-  else{el.value='';el.placeholder='לא זוהה — הזן ידנית';}
+
+function editFood(i) { openFoodSheet(i); }
+
+function rmFood(i) {
+  if (!confirm('מחק ארוחה זו?')) return;
+  dd(curD).foods.splice(i, 1);
+  persist();
+  pushMeals(curD);
+  renderLog();
 }
-function rmFood(i){dd(curD).foods.splice(i,1);persist();pushMeals(curD);renderLog();}
+
+/* autoEstimate is kept for backward compat but no longer called on input */
+function autoEstimate() {}
 
 /* ══ Weight ══ */
 function saveWeight(){
