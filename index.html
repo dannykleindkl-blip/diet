@@ -101,8 +101,8 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 .hc{background:var(--surface2);border-radius:var(--radius-sm);padding:7px 6px;cursor:pointer;text-align:center;border:1px solid transparent;transition:.15s;}
 .hc:hover{border-color:var(--border2);}
 .hc-icon{font-size:18px;margin-bottom:1px;}
-.hc-label{font-size:10px;color:var(--muted);}
-.hc-val{font-size:11px;font-weight:600;margin-top:1px;color:var(--text);word-break:break-all;overflow-wrap:anywhere;line-height:1.2;}
+.hc-label{font-size:9px;color:var(--muted);letter-spacing:-0.01em;}
+.hc-val{font-size:11px;font-weight:600;margin-top:1px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:clip;line-height:1.2;}
 .hc-val.set{color:var(--green);}
 
 /* Item list */
@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.2 · 2026-04-15 10:41 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.3 · 2026-04-15 15:02 UTC</p>
           </div>
         </div>
       </div>
@@ -1037,7 +1037,7 @@ function renderActivityCards(){
   }
   sc('hc-steps',   h.steps   ?rnd(h.steps).toLocaleString()  :'','  צעד',  !!h.steps);
   sc('hc-walkdist',h.walkDist?Number(h.walkDist).toFixed(1)  :'','  ק"מ',  !!h.walkDist);
-  sc('hc-swimdist', h.swimDist ? String(parseInt(h.swimDist||0,10)) :'', 'מ\'', !!h.swimDist);
+  sc('hc-swimdist', h.swimDist ? parseFloat(h.swimDist).toFixed(3) :'', 'מ\'', !!h.swimDist);
   sc('hc-swimmin',  h.swimMin  ?rnd(h.swimMin)                :'','  דק\'', !!h.swimMin);
   sc('hc-actcal',  h.actCal  ?rnd(h.actCal)                  :'','  קק"ל', !!h.actCal);
 }
@@ -1161,7 +1161,8 @@ function interpretMeal() {
   var txt = document.getElementById('f-text').value.trim();
   if (!txt) { document.getElementById('f-text').focus(); return; }
 
-  /* Step 1: Find portion-clarification questions from local rules */
+  /* Step 1: Find portion-clarification questions (e.g. bread slice count).
+     These are asked BEFORE Gemini so the answer enriches the text. */
   var lower = txt.toLowerCase();
   var allQuestions = [];
   FOOD_CLARIFY.forEach(function(rule) {
@@ -1180,14 +1181,15 @@ function interpretMeal() {
   clarifyState.overrideCal = null;
   clarifyState.originalTxt = txt;
 
-  /* Step 2: If questions exist, show them first — Gemini waits */
+  /* Step 2: If questions exist, show them first — always ends in Gemini call */
   if (allQuestions.length > 0) {
     document.getElementById('food-result-area').style.display = 'none';
+    document.getElementById('clarify-area').style.display = 'block';
     renderNextQuestion();
     return;
   }
 
-  /* Step 3: No questions → go straight to Gemini */
+  /* Step 3: No portion questions → send directly to Gemini (always) */
   callGeminiAndShow(txt);
 }
 
@@ -1206,7 +1208,7 @@ function onAllQuestionsAnswered() {
 /* Send enriched text to Gemini via Worker, populate result */
 function callGeminiAndShow(text) {
   var btn = document.getElementById('interpret-btn');
-  if (btn) { btn.textContent = '...'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'מחשב...'; btn.disabled = true; }
 
   /* Show result area with loading state */
   document.getElementById('food-result-area').style.display = 'block';
@@ -1271,17 +1273,21 @@ function answerQuestion(choice) {
   if (clarifyState.pending.length === 0) return;
   var q = clarifyState.pending.shift();
 
-  /* Record the human-readable answer text for Gemini context */
+  /* Append the human-readable answer into the textarea so Gemini sees it */
   var answerLabel = choice === 0 ? q.a : q.b;
   clarifyState.answered.push(answerLabel);
+  var txtEl = document.getElementById('f-text');
+  if (txtEl) {
+    txtEl.value = (txtEl.value.trim() + ' — ' + answerLabel).trim();
+  }
 
-  /* Show next question */
+  /* Show next question or proceed to Gemini */
   if (clarifyState.pending.length > 0) {
     renderNextQuestion();
   } else {
-    /* All questions answered — now call Gemini with full context */
     document.getElementById('clarify-area').style.display = 'none';
-    onAllQuestionsAnswered();
+    /* Gemini now reads the textarea which has all answers appended */
+    callGeminiAndShow(txtEl ? txtEl.value.trim() : clarifyState.originalTxt);
   }
 }
 
