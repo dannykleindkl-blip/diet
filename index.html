@@ -102,7 +102,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 .hc:hover{border-color:var(--border2);}
 .hc-icon{font-size:18px;margin-bottom:1px;}
 .hc-label{font-size:10px;color:var(--muted);}
-.hc-val{font-size:13px;font-weight:600;margin-top:1px;color:var(--text);}
+.hc-val{font-size:11px;font-weight:600;margin-top:1px;color:var(--text);word-break:break-all;overflow-wrap:anywhere;line-height:1.2;}
 .hc-val.set{color:var(--green);}
 
 /* Item list */
@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.1 · 2026-04-15 05:07 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.2 · 2026-04-15 10:41 UTC</p>
           </div>
         </div>
       </div>
@@ -1037,7 +1037,7 @@ function renderActivityCards(){
   }
   sc('hc-steps',   h.steps   ?rnd(h.steps).toLocaleString()  :'','  צעד',  !!h.steps);
   sc('hc-walkdist',h.walkDist?Number(h.walkDist).toFixed(1)  :'','  ק"מ',  !!h.walkDist);
-  sc('hc-swimdist', h.swimDist ? String(parseInt(h.swimDist,10)) :'','  מ\'',  !!h.swimDist);
+  sc('hc-swimdist', h.swimDist ? String(parseInt(h.swimDist||0,10)) :'', 'מ\'', !!h.swimDist);
   sc('hc-swimmin',  h.swimMin  ?rnd(h.swimMin)                :'','  דק\'', !!h.swimMin);
   sc('hc-actcal',  h.actCal  ?rnd(h.actCal)                  :'','  קק"ל', !!h.actCal);
 }
@@ -1150,16 +1150,18 @@ var clarifyState = {
   overrideCal: null /* final cal if all questions override base */
 };
 
-/* ── interpretMeal: called when user taps "חשב ›" ── */
+/* ── interpretMeal: called when user taps "חשב ›"
+   FLOW:
+   1. Find local clarify questions for portion ambiguity
+   2. If questions exist → show first question, wait for answers
+   3. After all questions answered (or none) → call Gemini with enriched text
+   4. Gemini result → populate calorie field (never overridden by local DB)
+   ── */
 function interpretMeal() {
   var txt = document.getElementById('f-text').value.trim();
   if (!txt) { document.getElementById('f-text').focus(); return; }
 
-  /* Show spinner while AI calculates */
-  var btn = document.getElementById('interpret-btn');
-  if (btn) { btn.textContent = '...'; btn.disabled = true; }
-
-  /* Also find local clarify questions for portion details */
+  /* Step 1: Find portion-clarification questions from local rules */
   var lower = txt.toLowerCase();
   var allQuestions = [];
   FOOD_CLARIFY.forEach(function(rule) {
@@ -1172,45 +1174,77 @@ function interpretMeal() {
     }
   });
 
-  /* Call Worker /api/calories — Gemini AI calorie estimation */
-  calculateCalories(txt, function(cal) {
-    /* Restore button */
+  clarifyState.pending     = allQuestions;
+  clarifyState.answered    = [];
+  clarifyState.baseCal     = 0;
+  clarifyState.overrideCal = null;
+  clarifyState.originalTxt = txt;
+
+  /* Step 2: If questions exist, show them first — Gemini waits */
+  if (allQuestions.length > 0) {
+    document.getElementById('food-result-area').style.display = 'none';
+    renderNextQuestion();
+    return;
+  }
+
+  /* Step 3: No questions → go straight to Gemini */
+  callGeminiAndShow(txt);
+}
+
+/* Called when all clarify questions have been answered.
+   Appends answers to the text so Gemini has full context. */
+function onAllQuestionsAnswered() {
+  var txt = clarifyState.originalTxt || document.getElementById('f-text').value.trim();
+  /* Append portion answers to text for Gemini context */
+  var enriched = txt;
+  if (clarifyState.answered.length > 0) {
+    enriched += ' (' + clarifyState.answered.join(', ') + ')';
+  }
+  callGeminiAndShow(enriched);
+}
+
+/* Send enriched text to Gemini via Worker, populate result */
+function callGeminiAndShow(text) {
+  var btn = document.getElementById('interpret-btn');
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
+
+  /* Show result area with loading state */
+  document.getElementById('food-result-area').style.display = 'block';
+  var disp = document.getElementById('food-cal-display');
+  if (disp) disp.textContent = 'מחשב...';
+
+  calculateCalories(text, function(cal) {
     if (btn) { btn.textContent = 'חשב ›'; btn.disabled = false; }
-
-    clarifyState.pending     = allQuestions;
-    clarifyState.answered    = [];
-    clarifyState.baseCal     = cal;
-    clarifyState.overrideCal = null;
-
-    document.getElementById('food-result-area').style.display = 'block';
     document.getElementById('f-cal').value = cal > 0 ? cal : '';
     updateCalDisplay();
-    renderNextQuestion();
   });
 }
 
-/* Send text to Worker → Gemini API, get integer calorie count back */
+/* POST to Worker /api/calories → Gemini → integer.
+   Gemini result is authoritative — local DB is NOT used as fallback
+   for the final number, only when the network is completely down. */
 function calculateCalories(text, onDone) {
   fetchWithTimeout(WORKER_URL + '/api/calories', {
-    method: 'POST',
+    method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: text })
+    body:    JSON.stringify({ text: text })
   }, 8000)
   .then(function(r){ return r.json(); })
   .then(function(d){
     var cal = parseInt(d.calories) || 0;
-    if (cal > 0) {
-      onDone(cal);
-    } else {
-      /* Gemini returned 0 or failed — fall back to local DB */
-      console.warn('[מאזן] Gemini returned 0, falling back to local estimate');
-      onDone(estimateCal(text));
+    console.log('[מאזן] Gemini returned:', cal, 'for:', text.slice(0,50));
+    onDone(cal > 0 ? cal : 0);
+    /* If 0, the calorie field stays empty — user must enter manually */
+    if (cal <= 0) {
+      var calEl = document.getElementById('f-cal');
+      if (calEl) { calEl.placeholder = 'לא זוהה — הזן ידנית'; }
     }
   })
   .catch(function(e){
-    console.warn('[מאזן] Gemini call failed, using local estimate:', e.message);
+    console.warn('[מאזן] Gemini unreachable:', e.message);
     showOfflineBadge(true);
-    onDone(estimateCal(text)); /* always unblock the UI */
+    /* Network down — field stays empty, user enters manually */
+    onDone(0);
   });
 }
 
@@ -1235,24 +1269,20 @@ function renderNextQuestion() {
 
 function answerQuestion(choice) {
   if (clarifyState.pending.length === 0) return;
-  var q     = clarifyState.pending.shift(); /* take first question */
-  var calEl = document.getElementById('f-cal');
-  var cur   = parseInt(calEl.value) || clarifyState.baseCal || 0;
+  var q = clarifyState.pending.shift();
 
-  /* Apply answer */
-  var newCal;
-  if (q.isDelta) {
-    newCal = Math.max(10, cur + (choice === 0 ? q.aCal : q.bCal));
+  /* Record the human-readable answer text for Gemini context */
+  var answerLabel = choice === 0 ? q.a : q.b;
+  clarifyState.answered.push(answerLabel);
+
+  /* Show next question */
+  if (clarifyState.pending.length > 0) {
+    renderNextQuestion();
   } else {
-    newCal = choice === 0 ? q.aCal : q.bCal;
+    /* All questions answered — now call Gemini with full context */
+    document.getElementById('clarify-area').style.display = 'none';
+    onAllQuestionsAnswered();
   }
-  calEl.value = newCal;
-  updateCalDisplay();
-
-  clarifyState.answered.push(newCal);
-
-  /* Show next question or hide */
-  renderNextQuestion();
 }
 
 function updateCalDisplay() {
