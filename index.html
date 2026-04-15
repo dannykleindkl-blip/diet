@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.0 · 2026-04-14 18:19 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.1 · 2026-04-15 05:07 UTC</p>
           </div>
         </div>
       </div>
@@ -1037,7 +1037,7 @@ function renderActivityCards(){
   }
   sc('hc-steps',   h.steps   ?rnd(h.steps).toLocaleString()  :'','  צעד',  !!h.steps);
   sc('hc-walkdist',h.walkDist?Number(h.walkDist).toFixed(1)  :'','  ק"מ',  !!h.walkDist);
-  sc('hc-swimdist', h.swimDist ?rnd(h.swimDist)               :'','  מ\'',  !!h.swimDist);
+  sc('hc-swimdist', h.swimDist ? String(parseInt(h.swimDist,10)) :'','  מ\'',  !!h.swimDist);
   sc('hc-swimmin',  h.swimMin  ?rnd(h.swimMin)                :'','  דק\'', !!h.swimMin);
   sc('hc-actcal',  h.actCal  ?rnd(h.actCal)                  :'','  קק"ל', !!h.actCal);
 }
@@ -1155,10 +1155,12 @@ function interpretMeal() {
   var txt = document.getElementById('f-text').value.trim();
   if (!txt) { document.getElementById('f-text').focus(); return; }
 
-  var baseCal = estimateCal(txt);
-  var lower   = txt.toLowerCase();
+  /* Show spinner while AI calculates */
+  var btn = document.getElementById('interpret-btn');
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
 
-  /* Find ALL matching clarify rules for this text (up to 3 questions total) */
+  /* Also find local clarify questions for portion details */
+  var lower = txt.toLowerCase();
   var allQuestions = [];
   FOOD_CLARIFY.forEach(function(rule) {
     if (allQuestions.length >= 3) return;
@@ -1170,21 +1172,46 @@ function interpretMeal() {
     }
   });
 
-  clarifyState.pending   = allQuestions;
-  clarifyState.answered  = [];
-  clarifyState.baseCal   = baseCal;
-  clarifyState.overrideCal = null;
+  /* Call Worker /api/calories — Gemini AI calorie estimation */
+  calculateCalories(txt, function(cal) {
+    /* Restore button */
+    if (btn) { btn.textContent = 'חשב ›'; btn.disabled = false; }
 
-  /* Show result area */
-  document.getElementById('food-result-area').style.display = 'block';
+    clarifyState.pending     = allQuestions;
+    clarifyState.answered    = [];
+    clarifyState.baseCal     = cal;
+    clarifyState.overrideCal = null;
 
-  /* Set initial cal */
-  var initialCal = baseCal > 0 ? baseCal : 0;
-  document.getElementById('f-cal').value = initialCal || '';
-  updateCalDisplay();
+    document.getElementById('food-result-area').style.display = 'block';
+    document.getElementById('f-cal').value = cal > 0 ? cal : '';
+    updateCalDisplay();
+    renderNextQuestion();
+  });
+}
 
-  /* Render first question if any */
-  renderNextQuestion();
+/* Send text to Worker → Gemini API, get integer calorie count back */
+function calculateCalories(text, onDone) {
+  fetchWithTimeout(WORKER_URL + '/api/calories', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: text })
+  }, 8000)
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    var cal = parseInt(d.calories) || 0;
+    if (cal > 0) {
+      onDone(cal);
+    } else {
+      /* Gemini returned 0 or failed — fall back to local DB */
+      console.warn('[מאזן] Gemini returned 0, falling back to local estimate');
+      onDone(estimateCal(text));
+    }
+  })
+  .catch(function(e){
+    console.warn('[מאזן] Gemini call failed, using local estimate:', e.message);
+    showOfflineBadge(true);
+    onDone(estimateCal(text)); /* always unblock the UI */
+  });
 }
 
 function renderNextQuestion() {
