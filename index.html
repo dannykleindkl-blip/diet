@@ -150,7 +150,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
 .cd-dot{width:4px;height:4px;border-radius:50%;margin-top:3px;background:var(--green-mid);}
 .week-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
 .ws-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;}
-.week-chart{display:flex;align-items:flex-end;gap:6px;height:80px;}
+.week-chart{display:flex;flex-direction:row-reverse;align-items:flex-end;gap:6px;height:80px;}
 .wbar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
 .wbar-cols{display:flex;align-items:flex-end;gap:2px;height:64px;width:100%;}
 .wbar{flex:1;border-radius:3px 3px 0 0;min-height:2px;transition:height .3s;}
@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.6 · 2026-04-16 13:45 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.8 · 2026-04-16 21:21 UTC</p>
           </div>
         </div>
       </div>
@@ -1036,7 +1036,9 @@ function renderActivityCards(){
     el.className='hc-val'+(set?' set':'');
   }
   sc('hc-steps',   h.steps   ?rnd(h.steps).toLocaleString()  :'','  צעד',  !!h.steps);
-  sc('hc-walkdist',h.walkDist?Number(h.walkDist).toFixed(1)  :'','  ק"מ',  !!h.walkDist);
+  /* If walkDist > 10, it was sent in meters — convert to km */
+  var walkKm = h.walkDist ? (h.walkDist > 10 ? (h.walkDist / 1000).toFixed(3) : Number(h.walkDist).toFixed(3)) : '';
+  sc('hc-walkdist', walkKm, ' ק"מ', !!h.walkDist);
   sc('hc-swimdist', h.swimDist ? parseFloat(h.swimDist).toFixed(3) :'', 'מ\'', !!h.swimDist);
   sc('hc-swimmin',  h.swimMin  ?rnd(h.swimMin)                :'','  דק\'', !!h.swimMin);
   sc('hc-actcal',  h.actCal  ?rnd(h.actCal)                  :'','  קק"ל', !!h.actCal);
@@ -1058,6 +1060,7 @@ var FOOD_CLARIFY = [
   {
     keys: ['טורטייה','טורטיה','tortilla','tortillas','wrap'],
     item: 'טורטייה',
+    answered_if: ['אחת (90','שתיים (180','טורטיות','tortillas','wraps','קטנה (70','גדולה (120'],
     questions: [
       { q: 'כמה טורטיות?', a: 'אחת (90 קק"ל)', aCal: 90, b: 'שתיים (180 קק"ל)', bCal: 180 },
       { q: 'גודל הטורטייה?', a: 'קטנה (70 קק"ל)', aCal: 70, b: 'גדולה (120 קק"ל)', bCal: 120 }
@@ -1101,6 +1104,7 @@ var FOOD_CLARIFY = [
   {
     keys: ['פסטה','ספגטי','noodle','pasta'],
     item: 'פסטה',
+    answered_if: ['מנה קטנה (250','מנה גדולה (450'],
     questions: [
       { q: 'כמה פסטה?', a: 'מנה קטנה (250 קק"ל)', aCal: 250, b: 'מנה גדולה (450 קק"ל)', bCal: 450 }
     ]
@@ -1129,6 +1133,7 @@ var FOOD_CLARIFY = [
   {
     keys: ['לחם','bread','פרוסה','toast','טוסט'],
     item: 'לחם',
+    answered_if: ['פרוסה אחת','שתי פרוסות','פרוסות','slices','slice'],
     questions: [
       { q: 'כמה פרוסות לחם?', a: 'פרוסה אחת (80 קק"ל)', aCal: 80, b: 'שתי פרוסות (160 קק"ל)', bCal: 160 }
     ]
@@ -1203,11 +1208,24 @@ function buildQuestionQueue(txt) {
   var queue = [];
   for (var i = 0; i < FOOD_CLARIFY.length; i++) {
     if (queue.length >= 5) break;
-    var rule    = FOOD_CLARIFY[i];
+    var rule = FOOD_CLARIFY[i];
+
+    /* Check if keyword is present in text */
     var matched = rule.keys.some(function(k){ return lower.indexOf(k) !== -1; });
-    if (matched && rule.questions.length > 0) {
-      queue.push(rule.questions[0]);  /* one question per matched item */
+    if (!matched || !rule.questions.length) continue;
+
+    /* Skip question if the textarea already contains a clarifying answer.
+       Each rule declares "answered_if" — strings that indicate the
+       user already gave a portion answer for this item. */
+    var alreadyAnswered = false;
+    if (rule.answered_if) {
+      alreadyAnswered = rule.answered_if.some(function(hint){
+        return lower.indexOf(hint.toLowerCase()) !== -1;
+      });
     }
+    if (alreadyAnswered) continue;
+
+    queue.push(rule.questions[0]);
   }
   return queue;
 }
