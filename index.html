@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.8 · 2026-04-16 21:21 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.9 · 2026-04-17 05:35 UTC</p>
           </div>
         </div>
       </div>
@@ -1170,113 +1170,119 @@ var FOOD_CLARIFY = [
    No match → Gemini called immediately.
    ══════════════════════════════════════════════════════════ */
 
-var clarifyState = {
-  queue:    [],    /* ordered list of questions yet to ask */
-  started:  false, /* true after first interpretMeal() click */
+/* ══════════════════════════════════════════════════════
+   FOOD INTAKE FLOW  v4.9  —  clean-slate rewrite
+   Phase 1: scan keywords → build interview list (skip if already answered)
+   Phase 2: show one question at a time; each answer appended to textarea
+   Phase 3: zero questions left → POST textarea to Gemini automatically
+   Phase 4: show [מחשב...], populate result
+   No loops. No backward movement. No "not identified" error.
+   ══════════════════════════════════════════════════════ */
+
+/* Single source of truth for the current interview session.
+   Reset at the start of every interpretMeal() call. */
+var CS = {
+  pending: [],      /* questions still to ask — array of question objects  */
+  done:    false,   /* true once Gemini has been called this session        */
 };
 
-/* ── interpretMeal: entry point for the חשב button ──
-   If queue is non-empty: show next question (no bypass).
-   If queue is empty and started: should not happen (auto-advances).
-   Fresh press: build queue from ALL matched rules, then proceed. */
+/* ── PHASE 1 + entry point ──────────────────────────────────────
+   Called when user taps [חשב ›].
+   Always reads the textarea fresh. Rebuilds the pending list.
+   If questions remain → show first. If none → call Gemini.
+   ──────────────────────────────────────────────────────────────*/
 function interpretMeal() {
-  var txt = document.getElementById('f-text').value.trim();
-  if (!txt) { document.getElementById('f-text').focus(); return; }
+  var txtEl = document.getElementById('f-text');
+  var txt   = txtEl ? txtEl.value.trim() : '';
+  if (!txt) { if (txtEl) txtEl.focus(); return; }
 
-  /* If questions are pending, חשב advances to next (no force-skip) */
-  if (clarifyState.started && clarifyState.queue.length > 0) {
-    showNextQuestion();
-    return;
-  }
+  /* If Gemini call already in flight, do nothing */
+  var btn = document.getElementById('interpret-btn');
+  if (btn && btn.disabled) return;
 
-  /* Fresh press — build full question queue from ALL matched rules */
-  clarifyState.queue   = buildQuestionQueue(txt);
-  clarifyState.started = true;
+  /* Build fresh pending list from current textarea content.
+     This automatically skips any question whose answer is
+     already present in the text (answered_if check). */
+  CS.pending = buildPending(txt);
+  CS.done    = false;
   hideClarify();
 
-  if (clarifyState.queue.length > 0) {
-    showNextQuestion();
+  if (CS.pending.length > 0) {
+    showQuestion(CS.pending[0]);          /* show first unanswered question */
   } else {
-    /* No recognised keywords — Gemini handles everything */
-    callGeminiAndShow(txt);
+    fireGemini(txt);                      /* no questions → straight to AI  */
   }
 }
 
-/* Scan ALL keywords in txt, collect one question per matched rule (max 5) */
-function buildQuestionQueue(txt) {
-  var lower = txt.toLowerCase();
-  var queue = [];
-  for (var i = 0; i < FOOD_CLARIFY.length; i++) {
-    if (queue.length >= 5) break;
+/* ── PHASE 2: build the pending question list ────────────────────
+   Scans FOOD_CLARIFY rules against the textarea text.
+   Skips a rule when:
+     (a) keyword not in text, OR
+     (b) answered_if hint already found in text
+   ──────────────────────────────────────────────────────────────*/
+function buildPending(txt) {
+  var lower   = txt.toLowerCase();
+  var pending = [];
+  for (var i = 0; i < FOOD_CLARIFY.length && pending.length < 5; i++) {
     var rule = FOOD_CLARIFY[i];
 
-    /* Check if keyword is present in text */
-    var matched = rule.keys.some(function(k){ return lower.indexOf(k) !== -1; });
-    if (!matched || !rule.questions.length) continue;
+    /* (a) keyword present? */
+    var hit = rule.keys.some(function(k) { return lower.indexOf(k) !== -1; });
+    if (!hit) continue;
 
-    /* Skip question if the textarea already contains a clarifying answer.
-       Each rule declares "answered_if" — strings that indicate the
-       user already gave a portion answer for this item. */
-    var alreadyAnswered = false;
+    /* (b) already answered? */
     if (rule.answered_if) {
-      alreadyAnswered = rule.answered_if.some(function(hint){
-        return lower.indexOf(hint.toLowerCase()) !== -1;
+      var already = rule.answered_if.some(function(h) {
+        return lower.indexOf(h.toLowerCase()) !== -1;
       });
+      if (already) continue;
     }
-    if (alreadyAnswered) continue;
 
-    queue.push(rule.questions[0]);
+    if (rule.questions && rule.questions.length > 0) {
+      pending.push(rule.questions[0]);    /* one question per rule */
+    }
   }
-  return queue;
+  return pending;
 }
 
-/* Show the next question from the queue */
-function showNextQuestion() {
-  if (clarifyState.queue.length === 0) {
-    /* Queue exhausted — fire Gemini with enriched text */
-    hideClarify();
-    var txt = document.getElementById('f-text').value.trim();
-    callGeminiAndShow(txt);
-    return;
-  }
-  var q = clarifyState.queue[0]; /* peek — shift happens in answerQuestion */
-  showClarify(q);
-}
-
-/* ── answerQuestion: user tapped a clarify button ── */
-function answerQuestion(choice) {
-  var area = document.getElementById('clarify-area');
-  if (!area) return;
-
-  /* Remove the answered question from queue */
-  var q = clarifyState.queue.shift();
-
-  /* Append chosen answer label to textarea */
-  var answerLabel = choice === 0 ? q.a : q.b;
-  var txtEl = document.getElementById('f-text');
-  if (txtEl && answerLabel) {
-    txtEl.value = txtEl.value.trim() + ' (' + answerLabel + ')';
-  }
-
-  /* Show next question, or call Gemini if queue empty */
-  if (clarifyState.queue.length > 0) {
-    showNextQuestion();
-  } else {
-    hideClarify();
-    callGeminiAndShow(txtEl ? txtEl.value.trim() : '');
-  }
-}
-
-function showClarify(q) {
+/* ── PHASE 2 UI: show a single question ─────────────────────── */
+function showQuestion(q) {
   var area = document.getElementById('clarify-area');
   if (!area) return;
   area.style.display = 'block';
   area.innerHTML =
     '<div class="clarify-bar">' +
       '<span class="clarify-q">' + q.q + '</span>' +
-      '<button class="clarify-btn" onclick="answerQuestion(0)">' + q.a + '</button>' +
-      '<button class="clarify-btn" onclick="answerQuestion(1)">' + q.b + '</button>' +
+      '<button class="clarify-btn" onclick="pickAnswer(0)"> ' + q.a + '</button>' +
+      '<button class="clarify-btn" onclick="pickAnswer(1)">' + q.b + '</button>' +
     '</div>';
+}
+
+/* Called when user taps one of the answer buttons */
+function pickAnswer(idx) {
+  /* Determine chosen label from current question */
+  var q = CS.pending.shift();             /* remove this question — done    */
+  if (!q) return;
+  var label = idx === 0 ? q.a : q.b;
+
+  /* Append answer to textarea */
+  var txtEl = document.getElementById('f-text');
+  if (txtEl) txtEl.value = txtEl.value.trim() + ' (' + label + ')';
+
+  hideClarify();
+
+  /* ── PHASE 3: move forward ──────────────────────────────────
+     Rebuild pending from the *updated* textarea so any hints
+     just appended are recognised and the same question is
+     never re-asked. Then either show next Q or fire Gemini. */
+  var freshTxt = txtEl ? txtEl.value.trim() : '';
+  CS.pending   = buildPending(freshTxt);  /* always rebuild, never reuse   */
+
+  if (CS.pending.length > 0) {
+    showQuestion(CS.pending[0]);
+  } else {
+    fireGemini(freshTxt);                 /* all answered → hand off to AI */
+  }
 }
 
 function hideClarify() {
@@ -1284,9 +1290,11 @@ function hideClarify() {
   if (area) { area.style.display = 'none'; area.innerHTML = ''; }
 }
 
-/* ── callGeminiAndShow: POST enriched text → Worker → Gemini ── */
-function callGeminiAndShow(text) {
-  if (!text) return;
+/* ── PHASE 3 + 4: POST to Worker → Gemini ───────────────────── */
+function fireGemini(text) {
+  if (!text || CS.done) return;
+  CS.done = true;                         /* prevent double-fire            */
+
   var btn   = document.getElementById('interpret-btn');
   var disp  = document.getElementById('food-cal-display');
   var calEl = document.getElementById('f-cal');
@@ -1295,26 +1303,33 @@ function callGeminiAndShow(text) {
   if (disp) { disp.textContent = 'מחשב...'; }
   document.getElementById('food-result-area').style.display = 'block';
 
+  console.log('[מאזן] → Gemini:', text);
+
   fetchWithTimeout(WORKER_URL + '/api/calories', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ text: text })
   }, 8000)
-  .then(function(r){ return r.json(); })
-  .then(function(d){
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
     var cal = parseInt(d.calories) || 0;
-    console.log('[מאזן] Gemini:', cal, 'for:', text.slice(0, 60));
+    console.log('[מאזן] ← Gemini result:', cal);
     if (btn)   { btn.textContent = 'חשב ›'; btn.disabled = false; }
-    if (calEl) { calEl.value = cal > 0 ? cal : ''; }
+    if (calEl) { calEl.value = cal > 0 ? String(cal) : ''; }
     updateCalDisplay();
   })
-  .catch(function(e){
+  .catch(function(e) {
     console.warn('[מאזן] Gemini error:', e.message);
     showOfflineBadge(true);
     if (btn)  { btn.textContent = 'חשב ›'; btn.disabled = false; }
     if (disp) { disp.textContent = 'שגיאת רשת — הזן ידנית'; }
+    CS.done = false;                      /* allow retry after network error */
   });
 }
+
+/* Legacy aliases — kept so any stale onclick references don't crash */
+function callGeminiAndShow(text) { CS.done = false; fireGemini(text); }
+function answerQuestion(choice)  { pickAnswer(choice); }
 
 function updateCalDisplay() {
   var cal  = parseInt(document.getElementById('f-cal').value) || 0;
@@ -1332,8 +1347,8 @@ function openFoodSheet(idx) {
   var mealEl  = document.getElementById('f-meal');
 
   /* Reset clarify state for fresh session */
-  clarifyState.queue   = [];
-  clarifyState.started = false;
+  CS.pending = [];
+  CS.done    = false;
   hideClarify();
 
   if (editingFoodIdx !== null) {
