@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.0 · 2026-04-17 10:27 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.1 · 2026-04-17 21:12 UTC</p>
           </div>
         </div>
       </div>
@@ -1058,161 +1058,86 @@ var editingFoodIdx = null;  /* null = new, number = editing index */
    ─────────────────────────────────────────────────────────────── */
 var FOOD_CLARIFY = [
   {
-    keys: ['טורטייה','טורטיה','tortilla','tortillas','wrap'],
-    item: 'טורטייה',
-    answered_if: ['אחת (90','שתיים (180','טורטיות','tortillas','wraps','קטנה (70','גדולה (120'],
-    questions: [
-      { q: 'כמה טורטיות?', a: 'אחת (90 קק"ל)', aCal: 90, b: 'שתיים (180 קק"ל)', bCal: 180 },
-      { q: 'גודל הטורטייה?', a: 'קטנה (70 קק"ל)', aCal: 70, b: 'גדולה (120 קק"ל)', bCal: 120 }
-    ]
+    keys:        ['טורטייה','טורטיה','tortilla','tortillas','wrap'],
+    answered_if: ['כוס קטנה','כוס גדולה','אחת (','שתיים (','קטנה (','גדולה ('],
+    questions:   [{ q:'כמה טורטיות?', a:'אחת (90 קק"ל)', b:'שתיים (180 קק"ל)' }]
   },
   {
-    keys: ['קערה','bowl'],
-    item: 'קערה',
-    questions: [
-      { q: 'גודל הקערה?', a: 'קטנה', aCal: -60, b: 'גדולה', bCal: 80, isDelta: true }
-    ]
+    keys:        ['וויסקי','ויסקי','whisky','whiskey','bourbon'],
+    answered_if: ['כוס קטנה (65','כוס גדולה (130'],
+    questions:   [{ q:'כמה וויסקי?', a:'כוס קטנה (65 קק"ל)', b:'כוס גדולה (130 קק"ל)' }]
   },
   {
-    keys: ['ביתי','homemade','בבית'],
-    item: 'מנה ביתית',
-    questions: [
-      { q: 'גודל המנה הביתית?', a: 'קטנה', aCal: -80, b: 'גדולה', bCal: 120, isDelta: true }
-    ]
+    keys:        ['יין','wine'],
+    answered_if: ['כוס קטנה (85','כוס גדולה (160'],
+    questions:   [{ q:'כמה יין?', a:'כוס קטנה (85 קק"ל)', b:'כוס גדולה (160 קק"ל)' }]
   },
   {
-    keys: ['וויסקי','ויסקי','whisky','whiskey','bourbon'],
-    item: 'וויסקי',
-    questions: [
-      { q: 'כמה וויסקי?', a: 'כוס קטנה (65 קק"ל)', aCal: 65, b: 'כוס גדולה (130 קק"ל)', bCal: 130 }
-    ]
+    keys:        ['בירה','beer'],
+    answered_if: ['כוס קטנה (100','פחית (180'],
+    questions:   [{ q:'כמה בירה?', a:'כוס קטנה (100 קק"ל)', b:'פחית (180 קק"ל)' }]
   },
   {
-    keys: ['יין','wine'],
-    item: 'יין',
-    questions: [
-      { q: 'כמה יין?', a: 'כוס קטנה (85 קק"ל)', aCal: 85, b: 'כוס גדולה (160 קק"ל)', bCal: 160 }
-    ]
+    keys:        ['לחם','bread','טוסט','toast'],
+    answered_if: ['פרוסה אחת','שתי פרוסות','(80 קק','(160 קק'],
+    questions:   [{ q:'כמה פרוסות לחם?', a:'פרוסה אחת (80 קק"ל)', b:'שתי פרוסות (160 קק"ל)' }]
   },
   {
-    keys: ['בירה','beer'],
-    item: 'בירה',
-    questions: [
-      { q: 'כמה בירה?', a: 'כוס קטנה (100 קק"ל)', aCal: 100, b: 'פחית (180 קק"ל)', bCal: 180 }
-    ]
-  },
-  {
-    keys: ['פסטה','ספגטי','noodle','pasta'],
-    item: 'פסטה',
+    keys:        ['פסטה','ספגטי','pasta'],
     answered_if: ['מנה קטנה (250','מנה גדולה (450'],
-    questions: [
-      { q: 'כמה פסטה?', a: 'מנה קטנה (250 קק"ל)', aCal: 250, b: 'מנה גדולה (450 קק"ל)', bCal: 450 }
-    ]
+    questions:   [{ q:'כמה פסטה?', a:'מנה קטנה (250 קק"ל)', b:'מנה גדולה (450 קק"ל)' }]
   },
   {
-    keys: ['אורז','rice'],
-    item: 'אורז',
-    questions: [
-      { q: 'כמה אורז?', a: 'חצי כוס (100 קק"ל)', aCal: 100, b: 'כוס שלמה (200 קק"ל)', bCal: 200 }
-    ]
+    keys:        ['אורז','rice'],
+    answered_if: ['חצי כוס (100','כוס שלמה (200'],
+    questions:   [{ q:'כמה אורז?', a:'חצי כוס (100 קק"ל)', b:'כוס שלמה (200 קק"ל)' }]
   },
   {
-    keys: ['עוגה','cake'],
-    item: 'עוגה',
-    questions: [
-      { q: 'גודל הפרוסה?', a: 'קטנה (200 קק"ל)', aCal: 200, b: 'גדולה (350 קק"ל)', bCal: 350 }
-    ]
+    keys:        ['ביצה','ביצים','egg'],
+    answered_if: ['ביצה אחת','שתי ביצים','(75 קק','(150 קק'],
+    questions:   [{ q:'כמה ביצים?', a:'ביצה אחת (75 קק"ל)', b:'שתי ביצים (150 קק"ל)' }]
   },
   {
-    keys: ['שוקולד','chocolate'],
-    item: 'שוקולד',
-    questions: [
-      { q: 'כמה שוקולד?', a: 'קוביה-שתיים (50 קק"ל)', aCal: 50, b: 'חצי חפיסה (250 קק"ל)', bCal: 250 }
-    ]
+    keys:        ['עוגה','cake'],
+    answered_if: ['קטנה (200','גדולה (350'],
+    questions:   [{ q:'גודל הפרוסה?', a:'קטנה (200 קק"ל)', b:'גדולה (350 קק"ל)' }]
   },
   {
-    keys: ['לחם','bread','פרוסה','toast','טוסט'],
-    item: 'לחם',
-    answered_if: ['פרוסה אחת','שתי פרוסות','פרוסות','slices','slice'],
-    questions: [
-      { q: 'כמה פרוסות לחם?', a: 'פרוסה אחת (80 קק"ל)', aCal: 80, b: 'שתי פרוסות (160 קק"ל)', bCal: 160 }
-    ]
-  },
-  {
-    keys: ['ביצה','ביצים','egg','eggs'],
-    item: 'ביצים',
-    questions: [
-      { q: 'כמה ביצים?', a: 'ביצה אחת (75 קק"ל)', aCal: 75, b: 'שתי ביצים (150 קק"ל)', bCal: 150 }
-    ]
+    keys:        ['שוקולד','chocolate'],
+    answered_if: ['קוביה','חצי חפיסה','(50 קק','(250 קק'],
+    questions:   [{ q:'כמה שוקולד?', a:'קוביה-שתיים (50 קק"ל)', b:'חצי חפיסה (250 קק"ל)' }]
   }
 ];
 
-/* Active clarification state */
-/* ══════════════════════════════════════════════════════════
-   FOOD CLARIFY FLOW — flat, loop-free
-
-   RULES for when to show a clarification question:
-   - Only ONE question max per interpretMeal() call
-   - Skip ALL questions if: text has a comma, text has ≥2 items,
-     user already answered a question (state.answered.length > 0),
-     or 'חשב' was clicked while a question is showing ("force mode")
-   - After any question answer → immediately call Gemini, no loops
-   ══════════════════════════════════════════════════════════ */
-
-/* ══════════════════════════════════════════════════════════
-   STRICT LINEAR FLOW v4.6
-   Input → Question(s) → Gemini. No shortcuts, no bypasses.
-
-   interpretMeal() scans ALL keywords → builds question queue.
-   Each answer is appended to the textarea.
-   חשב while questions pending → shows next question (never skips).
-   Queue empty → Gemini called automatically with enriched text.
-   No match → Gemini called immediately.
-   ══════════════════════════════════════════════════════════ */
-
 /* ══════════════════════════════════════════════════════
-   FOOD INTAKE FLOW  v4.9  —  clean-slate rewrite
-   Phase 1: scan keywords → build interview list (skip if already answered)
-   Phase 2: show one question at a time; each answer appended to textarea
-   Phase 3: zero questions left → POST textarea to Gemini automatically
-   Phase 4: show [מחשב...], populate result
-   No loops. No backward movement. No "not identified" error.
+   FOOD INTAKE v5.1 — Linear Conveyor, hardened
+
+   MealState.queue = ordered list of unanswered questions.
+   No "done" flag. No "started" flag. No session state.
+   The ONLY lock is btn.disabled during the fetch.
+
+   Loop prevention: every rule has answered_if[].
+   After tapAnswer appends the label, buildQueue() is called
+   on the NEW textarea text. The answered_if check matches
+   the appended label and skips re-adding that question.
    ══════════════════════════════════════════════════════ */
 
-/* Single source of truth for the current interview session.
-   Reset at the start of every interpretMeal() call. */
-/* ══════════════════════════════════════════════════════════
-   FOOD INTAKE  v5.0  —  Linear Conveyor  (complete rewrite)
-
-   STATE: one plain object, reset on every sheet open.
-   No flags that survive across sessions. No "done" guard.
-
-   CONVEYOR:
-     interpretMeal()  →  scan text  →  question queue
-     showNextQ()      →  display one question at a time
-     tapAnswer()      →  append to textarea, rebuild queue, showNextQ / Gemini
-     sendToGemini()   →  POST → Worker → display cal
-   ══════════════════════════════════════════════════════════ */
-
-/* ── State: plain object, always reset before use ── */
 var MealState = { queue: [] };
 
-/* ── Entry: [חשב ›] clicked ──────────────────────────────────────
-   Build the question queue from what is currently in the textarea.
-   If queue empty → straight to Gemini.  Never loops. Never skips.
-   ──────────────────────────────────────────────────────────────── */
+/* ── interpretMeal: entry point ─────────────────────────────── */
 function interpretMeal() {
+  var btn   = document.getElementById('interpret-btn');
   var txtEl = document.getElementById('f-text');
   if (!txtEl) return;
   var txt = txtEl.value.trim();
   if (!txt) { txtEl.focus(); return; }
 
-  /* Do nothing if fetch is already in flight */
-  var btn = document.getElementById('interpret-btn');
+  /* If a Gemini fetch is running, do nothing */
   if (btn && btn.disabled) return;
 
   hideClarify();
-  MealState.queue = buildQueue(txt);   /* fresh every time */
+  MealState.queue = buildQueue(txt);
+  console.log('[5.1] queue built:', MealState.queue.length, 'Qs');
 
   if (MealState.queue.length > 0) {
     showNextQ();
@@ -1221,7 +1146,7 @@ function interpretMeal() {
   }
 }
 
-/* ── Build queue: scan FOOD_CLARIFY, skip already-answered ────── */
+/* ── buildQueue: case-insensitive, answered_if aware ────────── */
 function buildQueue(txt) {
   var lower = txt.toLowerCase();
   var q     = [];
@@ -1229,42 +1154,37 @@ function buildQueue(txt) {
   for (var i = 0; i < FOOD_CLARIFY.length && q.length < 5; i++) {
     var rule = FOOD_CLARIFY[i];
 
-    /* Keyword present in text? */
     var hit = rule.keys.some(function(k) {
       return lower.indexOf(k.toLowerCase()) !== -1;
     });
     if (!hit) continue;
 
-    /* Answer already present? (answered_if list) */
     if (rule.answered_if) {
-      var done = rule.answered_if.some(function(hint) {
+      var answered = rule.answered_if.some(function(hint) {
         return lower.indexOf(hint.toLowerCase()) !== -1;
       });
-      if (done) continue;          /* already answered — skip forever */
+      if (answered) { console.log('[5.1] skip answered:', rule.keys[0]); continue; }
     }
 
     if (rule.questions && rule.questions[0]) {
       q.push(rule.questions[0]);
+      console.log('[5.1] enqueue:', rule.questions[0].q);
     }
   }
   return q;
 }
 
-/* ── Show the next question from MealState.queue ────────────────
-   Always reads queue[0] (peek). tapAnswer() shifts it off.
-   ──────────────────────────────────────────────────────────────── */
+/* ── showNextQ ──────────────────────────────────────────────── */
 function showNextQ() {
   if (MealState.queue.length === 0) {
-    /* Nothing left — hand off to Gemini */
     var txt = (document.getElementById('f-text') || {}).value || '';
+    console.log('[5.1] queue empty → Gemini');
     sendToGemini(txt.trim());
     return;
   }
-
-  var q    = MealState.queue[0];   /* peek only */
+  var q    = MealState.queue[0];
   var area = document.getElementById('clarify-area');
   if (!area) return;
-
   area.style.display = 'block';
   area.innerHTML =
     '<div class="clarify-bar">' +
@@ -1272,31 +1192,34 @@ function showNextQ() {
       '<button class="clarify-btn" onclick="tapAnswer(0)">' + q.a + '</button>' +
       '<button class="clarify-btn" onclick="tapAnswer(1)">' + q.b + '</button>' +
     '</div>';
+  console.log('[5.1] showing:', q.q);
 }
 
-/* ── tapAnswer: user picked an option ───────────────────────────
-   1. Shift the answered question off the queue.
-   2. Append chosen label to textarea.
-   3. Rebuild queue from updated textarea (prevents re-asking).
-   4. showNextQ() → either next question or Gemini.
-   ──────────────────────────────────────────────────────────────── */
+/* ── tapAnswer ──────────────────────────────────────────────── */
 function tapAnswer(idx) {
-  var q = MealState.queue.shift();   /* remove answered question */
-  if (!q) return;
+  var q = MealState.queue.shift();
+  if (!q) { console.warn('[5.1] tapAnswer: empty queue'); return; }
 
   var label = idx === 0 ? q.a : q.b;
+  console.log('[5.1] answer:', label);
+
   var txtEl = document.getElementById('f-text');
-  if (txtEl) {
-    txtEl.value = txtEl.value.trim() + ' (' + label + ')';
-  }
+  if (txtEl) txtEl.value = txtEl.value.trim() + ' (' + label + ')';
 
   hideClarify();
 
-  /* Rebuild from updated text — answered_if now matches the appended label */
-  var fresh         = txtEl ? txtEl.value.trim() : '';
-  MealState.queue   = buildQueue(fresh);  /* re-scan; same Q cannot re-enter */
+  /* Rebuild from updated textarea — answered_if now matches appended label */
+  var fresh       = txtEl ? txtEl.value.trim() : '';
+  MealState.queue = buildQueue(fresh);
+  console.log('[5.1] remaining:', MealState.queue.length);
 
-  showNextQ();                            /* automatic — user never re-clicks */
+  /* HARD BRIDGE — explicit branch, no ambiguity */
+  if (MealState.queue.length > 0) {
+    showNextQ();
+  } else {
+    console.log('[5.1] BRIDGE → sendToGemini');
+    sendToGemini(fresh);
+  }
 }
 
 function hideClarify() {
@@ -1304,11 +1227,10 @@ function hideClarify() {
   if (area) { area.style.display = 'none'; area.innerHTML = ''; }
 }
 
-/* ── sendToGemini: POST enriched text → Worker → display ────────
-   No CS.done flag. Idempotency enforced by btn.disabled only.
-   ──────────────────────────────────────────────────────────────── */
+/* ── sendToGemini ───────────────────────────────────────────── */
 function sendToGemini(text) {
   if (!text) return;
+  console.log('[5.1] sendToGemini:', text);
 
   var btn   = document.getElementById('interpret-btn');
   var disp  = document.getElementById('food-cal-display');
@@ -1319,26 +1241,26 @@ function sendToGemini(text) {
   if (disp) { disp.textContent = 'מחשב...'; }
   if (resEl){ resEl.style.display = 'block'; }
 
-  console.log('[מאזן v5.0] → Gemini:', text);
-
   fetchWithTimeout(WORKER_URL + '/api/calories', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ text: text })
   }, 8000)
-  .then(function(r)  { return r.json(); })
-  .then(function(d)  {
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
     var cal = parseInt(d.calories) || 0;
-    console.log('[מאזן v5.0] ← Gemini result:', cal);
-    if (btn)   { btn.textContent = 'חשב ›'; btn.disabled = false; }
-    if (calEl) { calEl.value = cal > 0 ? String(cal) : ''; }
+    console.log('[5.1] result:', cal);
+    if (calEl) calEl.value = cal > 0 ? String(cal) : '';
     updateCalDisplay();
   })
   .catch(function(e) {
-    console.warn('[מאזן v5.0] Gemini error:', e.message);
+    console.warn('[5.1] error:', e.message);
     showOfflineBadge(true);
-    if (btn)  { btn.textContent = 'חשב ›'; btn.disabled = false; }
-    if (disp) { disp.textContent = 'שגיאת רשת — הזן ידנית'; }
+    if (disp) disp.textContent = 'שגיאת רשת — הזן ידנית';
+  })
+  .finally(function() {
+    /* Always re-enable — finally runs after both .then and .catch */
+    if (btn) { btn.textContent = 'חשב ›'; btn.disabled = false; }
   });
 }
 
@@ -1348,19 +1270,21 @@ function updateCalDisplay() {
   if (disp) disp.textContent = cal > 0 ? cal + ' קק"ל' : 'הזן קלוריות';
 }
 
-/* Legacy aliases so any old onclick="answerQuestion/callGeminiAndShow"
-   in cached HTML does not crash the page */
-function answerQuestion(c)     { tapAnswer(c); }
-function pickAnswer(c)         { tapAnswer(c); }
-function callGeminiAndShow(t)  { sendToGemini(t); }
+/* Legacy aliases — prevents crashes from any cached onclick references */
+function answerQuestion(c)    { tapAnswer(c); }
+function pickAnswer(c)        { tapAnswer(c); }
+function callGeminiAndShow(t) { sendToGemini(t); }
 
-/* ── openFoodSheet: open the sheet for new entry or edit ──────── */
+/* ── openFoodSheet ──────────────────────────────────────────── */
 function openFoodSheet(idx) {
   editingFoodIdx = (idx !== undefined && idx !== null) ? idx : null;
 
-  /* Reset conveyor completely */
   MealState.queue = [];
   hideClarify();
+
+  /* Always re-enable button when opening sheet */
+  var btn = document.getElementById('interpret-btn');
+  if (btn) { btn.textContent = 'חשב ›'; btn.disabled = false; }
 
   var titleEl = document.getElementById('food-sheet-title');
   var txtEl   = document.getElementById('f-text');
@@ -1380,15 +1304,13 @@ function openFoodSheet(idx) {
     updateCalDisplay();
     if (mealEl) {
       for (var i = 0; i < mealEl.options.length; i++) {
-        if (mealEl.options[i].text === food.meal) {
-          mealEl.selectedIndex = i; break;
-        }
+        if (mealEl.options[i].text === food.meal) { mealEl.selectedIndex = i; break; }
       }
     }
   } else {
     if (titleEl) { titleEl.textContent = 'הוסף אוכל / שתייה'; titleEl.classList.remove('editing'); }
-    if (txtEl)   txtEl.value  = '';
-    if (calEl)   calEl.value  = '';
+    if (txtEl)   txtEl.value = '';
+    if (calEl)   calEl.value = '';
     if (resEl)   resEl.style.display = 'none';
     if (subBtn)  subBtn.textContent = 'שמור ארוחה';
   }
@@ -1397,12 +1319,9 @@ function openFoodSheet(idx) {
   if (txtEl) setTimeout(function(){ txtEl.focus(); }, 300);
 }
 
-function cancelFoodEdit() {
-  editingFoodIdx = null;
-  closeOv('ov-food');
-}
+function cancelFoodEdit() { editingFoodIdx = null; closeOv('ov-food'); }
 
-/* ── addFood: final save ──────────────────────────────────────── */
+/* ── addFood ────────────────────────────────────────────────── */
 function addFood() {
   var txtEl = document.getElementById('f-text');
   var calEl = document.getElementById('f-cal');
@@ -1411,8 +1330,6 @@ function addFood() {
   var meal  = (document.getElementById('f-meal') || {}).value || 'חטיף';
 
   if (!txt) { if (txtEl) txtEl.focus(); return; }
-
-  /* If no cal yet, run the interpret flow first */
   if (cal <= 0) { interpretMeal(); return; }
 
   if (editingFoodIdx !== null) {
@@ -1439,6 +1356,7 @@ function rmFood(i) {
 }
 
 function autoEstimate() {}   /* kept for any cached HTML that references it */
+
 
 /* ══ Weight ══ */
 function saveWeight(){
