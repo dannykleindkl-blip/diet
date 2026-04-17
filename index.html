@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v4.9 · 2026-04-17 05:35 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.0 · 2026-04-17 10:27 UTC</p>
           </div>
         </div>
       </div>
@@ -1181,108 +1181,122 @@ var FOOD_CLARIFY = [
 
 /* Single source of truth for the current interview session.
    Reset at the start of every interpretMeal() call. */
-var CS = {
-  pending: [],      /* questions still to ask — array of question objects  */
-  done:    false,   /* true once Gemini has been called this session        */
-};
+/* ══════════════════════════════════════════════════════════
+   FOOD INTAKE  v5.0  —  Linear Conveyor  (complete rewrite)
 
-/* ── PHASE 1 + entry point ──────────────────────────────────────
-   Called when user taps [חשב ›].
-   Always reads the textarea fresh. Rebuilds the pending list.
-   If questions remain → show first. If none → call Gemini.
-   ──────────────────────────────────────────────────────────────*/
+   STATE: one plain object, reset on every sheet open.
+   No flags that survive across sessions. No "done" guard.
+
+   CONVEYOR:
+     interpretMeal()  →  scan text  →  question queue
+     showNextQ()      →  display one question at a time
+     tapAnswer()      →  append to textarea, rebuild queue, showNextQ / Gemini
+     sendToGemini()   →  POST → Worker → display cal
+   ══════════════════════════════════════════════════════════ */
+
+/* ── State: plain object, always reset before use ── */
+var MealState = { queue: [] };
+
+/* ── Entry: [חשב ›] clicked ──────────────────────────────────────
+   Build the question queue from what is currently in the textarea.
+   If queue empty → straight to Gemini.  Never loops. Never skips.
+   ──────────────────────────────────────────────────────────────── */
 function interpretMeal() {
   var txtEl = document.getElementById('f-text');
-  var txt   = txtEl ? txtEl.value.trim() : '';
-  if (!txt) { if (txtEl) txtEl.focus(); return; }
+  if (!txtEl) return;
+  var txt = txtEl.value.trim();
+  if (!txt) { txtEl.focus(); return; }
 
-  /* If Gemini call already in flight, do nothing */
+  /* Do nothing if fetch is already in flight */
   var btn = document.getElementById('interpret-btn');
   if (btn && btn.disabled) return;
 
-  /* Build fresh pending list from current textarea content.
-     This automatically skips any question whose answer is
-     already present in the text (answered_if check). */
-  CS.pending = buildPending(txt);
-  CS.done    = false;
   hideClarify();
+  MealState.queue = buildQueue(txt);   /* fresh every time */
 
-  if (CS.pending.length > 0) {
-    showQuestion(CS.pending[0]);          /* show first unanswered question */
+  if (MealState.queue.length > 0) {
+    showNextQ();
   } else {
-    fireGemini(txt);                      /* no questions → straight to AI  */
+    sendToGemini(txt);
   }
 }
 
-/* ── PHASE 2: build the pending question list ────────────────────
-   Scans FOOD_CLARIFY rules against the textarea text.
-   Skips a rule when:
-     (a) keyword not in text, OR
-     (b) answered_if hint already found in text
-   ──────────────────────────────────────────────────────────────*/
-function buildPending(txt) {
-  var lower   = txt.toLowerCase();
-  var pending = [];
-  for (var i = 0; i < FOOD_CLARIFY.length && pending.length < 5; i++) {
+/* ── Build queue: scan FOOD_CLARIFY, skip already-answered ────── */
+function buildQueue(txt) {
+  var lower = txt.toLowerCase();
+  var q     = [];
+
+  for (var i = 0; i < FOOD_CLARIFY.length && q.length < 5; i++) {
     var rule = FOOD_CLARIFY[i];
 
-    /* (a) keyword present? */
-    var hit = rule.keys.some(function(k) { return lower.indexOf(k) !== -1; });
+    /* Keyword present in text? */
+    var hit = rule.keys.some(function(k) {
+      return lower.indexOf(k.toLowerCase()) !== -1;
+    });
     if (!hit) continue;
 
-    /* (b) already answered? */
+    /* Answer already present? (answered_if list) */
     if (rule.answered_if) {
-      var already = rule.answered_if.some(function(h) {
-        return lower.indexOf(h.toLowerCase()) !== -1;
+      var done = rule.answered_if.some(function(hint) {
+        return lower.indexOf(hint.toLowerCase()) !== -1;
       });
-      if (already) continue;
+      if (done) continue;          /* already answered — skip forever */
     }
 
-    if (rule.questions && rule.questions.length > 0) {
-      pending.push(rule.questions[0]);    /* one question per rule */
+    if (rule.questions && rule.questions[0]) {
+      q.push(rule.questions[0]);
     }
   }
-  return pending;
+  return q;
 }
 
-/* ── PHASE 2 UI: show a single question ─────────────────────── */
-function showQuestion(q) {
+/* ── Show the next question from MealState.queue ────────────────
+   Always reads queue[0] (peek). tapAnswer() shifts it off.
+   ──────────────────────────────────────────────────────────────── */
+function showNextQ() {
+  if (MealState.queue.length === 0) {
+    /* Nothing left — hand off to Gemini */
+    var txt = (document.getElementById('f-text') || {}).value || '';
+    sendToGemini(txt.trim());
+    return;
+  }
+
+  var q    = MealState.queue[0];   /* peek only */
   var area = document.getElementById('clarify-area');
   if (!area) return;
+
   area.style.display = 'block';
   area.innerHTML =
     '<div class="clarify-bar">' +
       '<span class="clarify-q">' + q.q + '</span>' +
-      '<button class="clarify-btn" onclick="pickAnswer(0)"> ' + q.a + '</button>' +
-      '<button class="clarify-btn" onclick="pickAnswer(1)">' + q.b + '</button>' +
+      '<button class="clarify-btn" onclick="tapAnswer(0)">' + q.a + '</button>' +
+      '<button class="clarify-btn" onclick="tapAnswer(1)">' + q.b + '</button>' +
     '</div>';
 }
 
-/* Called when user taps one of the answer buttons */
-function pickAnswer(idx) {
-  /* Determine chosen label from current question */
-  var q = CS.pending.shift();             /* remove this question — done    */
+/* ── tapAnswer: user picked an option ───────────────────────────
+   1. Shift the answered question off the queue.
+   2. Append chosen label to textarea.
+   3. Rebuild queue from updated textarea (prevents re-asking).
+   4. showNextQ() → either next question or Gemini.
+   ──────────────────────────────────────────────────────────────── */
+function tapAnswer(idx) {
+  var q = MealState.queue.shift();   /* remove answered question */
   if (!q) return;
-  var label = idx === 0 ? q.a : q.b;
 
-  /* Append answer to textarea */
+  var label = idx === 0 ? q.a : q.b;
   var txtEl = document.getElementById('f-text');
-  if (txtEl) txtEl.value = txtEl.value.trim() + ' (' + label + ')';
+  if (txtEl) {
+    txtEl.value = txtEl.value.trim() + ' (' + label + ')';
+  }
 
   hideClarify();
 
-  /* ── PHASE 3: move forward ──────────────────────────────────
-     Rebuild pending from the *updated* textarea so any hints
-     just appended are recognised and the same question is
-     never re-asked. Then either show next Q or fire Gemini. */
-  var freshTxt = txtEl ? txtEl.value.trim() : '';
-  CS.pending   = buildPending(freshTxt);  /* always rebuild, never reuse   */
+  /* Rebuild from updated text — answered_if now matches the appended label */
+  var fresh         = txtEl ? txtEl.value.trim() : '';
+  MealState.queue   = buildQueue(fresh);  /* re-scan; same Q cannot re-enter */
 
-  if (CS.pending.length > 0) {
-    showQuestion(CS.pending[0]);
-  } else {
-    fireGemini(freshTxt);                 /* all answered → hand off to AI */
-  }
+  showNextQ();                            /* automatic — user never re-clicks */
 }
 
 function hideClarify() {
@@ -1290,92 +1304,97 @@ function hideClarify() {
   if (area) { area.style.display = 'none'; area.innerHTML = ''; }
 }
 
-/* ── PHASE 3 + 4: POST to Worker → Gemini ───────────────────── */
-function fireGemini(text) {
-  if (!text || CS.done) return;
-  CS.done = true;                         /* prevent double-fire            */
+/* ── sendToGemini: POST enriched text → Worker → display ────────
+   No CS.done flag. Idempotency enforced by btn.disabled only.
+   ──────────────────────────────────────────────────────────────── */
+function sendToGemini(text) {
+  if (!text) return;
 
   var btn   = document.getElementById('interpret-btn');
   var disp  = document.getElementById('food-cal-display');
   var calEl = document.getElementById('f-cal');
+  var resEl = document.getElementById('food-result-area');
 
   if (btn)  { btn.textContent = 'מחשב...'; btn.disabled = true; }
   if (disp) { disp.textContent = 'מחשב...'; }
-  document.getElementById('food-result-area').style.display = 'block';
+  if (resEl){ resEl.style.display = 'block'; }
 
-  console.log('[מאזן] → Gemini:', text);
+  console.log('[מאזן v5.0] → Gemini:', text);
 
   fetchWithTimeout(WORKER_URL + '/api/calories', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ text: text })
   }, 8000)
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
+  .then(function(r)  { return r.json(); })
+  .then(function(d)  {
     var cal = parseInt(d.calories) || 0;
-    console.log('[מאזן] ← Gemini result:', cal);
+    console.log('[מאזן v5.0] ← Gemini result:', cal);
     if (btn)   { btn.textContent = 'חשב ›'; btn.disabled = false; }
     if (calEl) { calEl.value = cal > 0 ? String(cal) : ''; }
     updateCalDisplay();
   })
   .catch(function(e) {
-    console.warn('[מאזן] Gemini error:', e.message);
+    console.warn('[מאזן v5.0] Gemini error:', e.message);
     showOfflineBadge(true);
     if (btn)  { btn.textContent = 'חשב ›'; btn.disabled = false; }
     if (disp) { disp.textContent = 'שגיאת רשת — הזן ידנית'; }
-    CS.done = false;                      /* allow retry after network error */
   });
 }
 
-/* Legacy aliases — kept so any stale onclick references don't crash */
-function callGeminiAndShow(text) { CS.done = false; fireGemini(text); }
-function answerQuestion(choice)  { pickAnswer(choice); }
-
 function updateCalDisplay() {
-  var cal  = parseInt(document.getElementById('f-cal').value) || 0;
+  var cal  = parseInt((document.getElementById('f-cal') || {}).value) || 0;
   var disp = document.getElementById('food-cal-display');
   if (disp) disp.textContent = cal > 0 ? cal + ' קק"ל' : 'הזן קלוריות';
 }
 
-/* ── openFoodSheet: open for new entry or edit ── */
+/* Legacy aliases so any old onclick="answerQuestion/callGeminiAndShow"
+   in cached HTML does not crash the page */
+function answerQuestion(c)     { tapAnswer(c); }
+function pickAnswer(c)         { tapAnswer(c); }
+function callGeminiAndShow(t)  { sendToGemini(t); }
+
+/* ── openFoodSheet: open the sheet for new entry or edit ──────── */
 function openFoodSheet(idx) {
   editingFoodIdx = (idx !== undefined && idx !== null) ? idx : null;
+
+  /* Reset conveyor completely */
+  MealState.queue = [];
+  hideClarify();
 
   var titleEl = document.getElementById('food-sheet-title');
   var txtEl   = document.getElementById('f-text');
   var calEl   = document.getElementById('f-cal');
   var mealEl  = document.getElementById('f-meal');
-
-  /* Reset clarify state for fresh session */
-  CS.pending = [];
-  CS.done    = false;
-  hideClarify();
+  var resEl   = document.getElementById('food-result-area');
+  var subBtn  = document.getElementById('food-submit-btn');
 
   if (editingFoodIdx !== null) {
     var food = dd(curD).foods[editingFoodIdx];
     if (!food) return;
-    titleEl.textContent = 'ערוך ארוחה';
-    titleEl.classList.add('editing');
-    txtEl.value  = food.text;
-    calEl.value  = food.cal;
+    if (titleEl) { titleEl.textContent = 'ערוך ארוחה'; titleEl.classList.add('editing'); }
+    if (txtEl)   txtEl.value = food.text;
+    if (calEl)   calEl.value = food.cal;
+    if (resEl)   resEl.style.display = 'block';
+    if (subBtn)  subBtn.textContent = 'שמור שינויים';
     updateCalDisplay();
-    document.getElementById('food-result-area').style.display = 'block';
-    var opts = mealEl.options;
-    for (var i = 0; i < opts.length; i++) {
-      if (opts[i].text === food.meal) { mealEl.selectedIndex = i; break; }
+    if (mealEl) {
+      for (var i = 0; i < mealEl.options.length; i++) {
+        if (mealEl.options[i].text === food.meal) {
+          mealEl.selectedIndex = i; break;
+        }
+      }
     }
-    document.getElementById('food-submit-btn').textContent = 'שמור שינויים';
   } else {
-    titleEl.textContent = 'הוסף אוכל / שתייה';
-    titleEl.classList.remove('editing');
-    txtEl.value  = '';
-    calEl.value  = '';
-    document.getElementById('food-result-area').style.display = 'none';
-    document.getElementById('food-submit-btn').textContent = 'שמור ארוחה';
+    if (titleEl) { titleEl.textContent = 'הוסף אוכל / שתייה'; titleEl.classList.remove('editing'); }
+    if (txtEl)   txtEl.value  = '';
+    if (calEl)   calEl.value  = '';
+    if (resEl)   resEl.style.display = 'none';
+    if (subBtn)  subBtn.textContent = 'שמור ארוחה';
   }
 
   openOv('ov-food');
-  setTimeout(function(){ txtEl.focus(); }, 300);
+  if (txtEl) setTimeout(function(){ txtEl.focus(); }, 300);
 }
 
 function cancelFoodEdit() {
@@ -1383,19 +1402,18 @@ function cancelFoodEdit() {
   closeOv('ov-food');
 }
 
-/* ── addFood: final save ── */
+/* ── addFood: final save ──────────────────────────────────────── */
 function addFood() {
-  var txt   = document.getElementById('f-text').value.trim();
-  var meal  = document.getElementById('f-meal').value;
+  var txtEl = document.getElementById('f-text');
   var calEl = document.getElementById('f-cal');
-  var cal   = parseInt(calEl.value) || 0;
+  var txt   = txtEl ? txtEl.value.trim() : '';
+  var cal   = parseInt(calEl ? calEl.value : 0) || 0;
+  var meal  = (document.getElementById('f-meal') || {}).value || 'חטיף';
 
-  if (!txt) { document.getElementById('f-text').focus(); return; }
-  if (cal <= 0) {
-    /* User hasn't run interpret yet — run it first */
-    interpretMeal();
-    return;
-  }
+  if (!txt) { if (txtEl) txtEl.focus(); return; }
+
+  /* If no cal yet, run the interpret flow first */
+  if (cal <= 0) { interpretMeal(); return; }
 
   if (editingFoodIdx !== null) {
     dd(curD).foods[editingFoodIdx] = { text: txt, cal: cal, meal: meal };
@@ -1420,8 +1438,7 @@ function rmFood(i) {
   renderLog();
 }
 
-/* autoEstimate is kept for backward compat but no longer called on input */
-function autoEstimate() {}
+function autoEstimate() {}   /* kept for any cached HTML that references it */
 
 /* ══ Weight ══ */
 function saveWeight(){
