@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.2 · 2026-04-18 05:15 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.3 · 2026-04-18 10:36 UTC</p>
           </div>
         </div>
       </div>
@@ -1273,18 +1273,17 @@ function sendToGemini(text) {
     try {
       d = JSON.parse(raw);
     } catch(parseErr) {
-      foodLog('JSON parse error — trying regex extraction');
-      /* Gemini sometimes returns a sentence — extract first number */
+      foodLog('JSON parse error — trying regex');
       var numMatch = raw.match(/\d+/);
       if (numMatch) {
         d = { calories: parseInt(numMatch[0]) };
-        foodLog('Extracted from text: ' + d.calories);
+        foodLog('Extracted: ' + d.calories);
       } else {
-        throw new Error('No number found in: ' + raw.slice(0, 40));
+        throw new Error('No number in response: ' + raw.slice(0, 40));
       }
     }
     var cal = parseInt(d.calories) || 0;
-    foodLog('Parsed calories: ' + cal);
+    foodLog('calories=' + cal + (d.explanation ? ' | ' + d.explanation.slice(0,40) : ''));
     if (calEl) calEl.value = cal > 0 ? String(cal) : '';
     updateCalDisplay();
   })
