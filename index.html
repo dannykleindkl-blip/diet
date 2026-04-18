@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.1 · 2026-04-17 21:12 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.2 · 2026-04-18 05:15 UTC</p>
           </div>
         </div>
       </div>
@@ -532,6 +532,8 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
     </div>
     <button class="sh-submit" id="food-submit-btn" onclick="addFood()">שמור ארוחה</button>
   </div>
+  <!-- ON-SCREEN DEBUG LOG — remove for production -->
+  <div id="food-debug-log" style="display:none;margin-top:10px;padding:8px 10px;background:#1a1916;border-radius:8px;font-size:10px;color:#8ac88a;font-family:monospace;line-height:1.6;max-height:80px;overflow-y:auto;direction:ltr;text-align:left;"></div>
 </div></div>
 
 <div class="overlay" id="ov-steps" onclick="closeOv('ov-steps')"><div class="sheet" onclick="sp(event)">
@@ -1036,8 +1038,10 @@ function renderActivityCards(){
     el.className='hc-val'+(set?' set':'');
   }
   sc('hc-steps',   h.steps   ?rnd(h.steps).toLocaleString()  :'','  צעד',  !!h.steps);
-  /* If walkDist > 10, it was sent in meters — convert to km */
-  var walkKm = h.walkDist ? (h.walkDist > 10 ? (h.walkDist / 1000).toFixed(3) : Number(h.walkDist).toFixed(3)) : '';
+  /* If walkDist > 50, it was sent in meters — convert to km.
+     Threshold 50 safely separates meters (e.g. 2353) from km (e.g. 6.5).
+     Nobody walks 50+ km in a day, but 50km in meters = 0.05km (trivial). */
+  var walkKm = h.walkDist ? (h.walkDist > 50 ? (h.walkDist / 1000).toFixed(3) : Number(h.walkDist).toFixed(3)) : '';
   sc('hc-walkdist', walkKm, ' ק"מ', !!h.walkDist);
   sc('hc-swimdist', h.swimDist ? parseFloat(h.swimDist).toFixed(3) :'', 'מ\'', !!h.swimDist);
   sc('hc-swimmin',  h.swimMin  ?rnd(h.swimMin)                :'','  דק\'', !!h.swimMin);
@@ -1228,9 +1232,18 @@ function hideClarify() {
 }
 
 /* ── sendToGemini ───────────────────────────────────────────── */
+/* ── dbg: write to on-screen log and console ── */
+function foodLog(msg) {
+  console.log('[מאזן]', msg);
+  var el = document.getElementById('food-debug-log');
+  if (!el) return;
+  el.style.display = 'block';
+  el.textContent   = msg + '\n' + el.textContent;   /* newest line on top */
+}
+
 function sendToGemini(text) {
   if (!text) return;
-  console.log('[5.1] sendToGemini:', text);
+  foodLog('→ sendToGemini: ' + text.slice(0, 40));
 
   var btn   = document.getElementById('interpret-btn');
   var disp  = document.getElementById('food-cal-display');
@@ -1241,25 +1254,48 @@ function sendToGemini(text) {
   if (disp) { disp.textContent = 'מחשב...'; }
   if (resEl){ resEl.style.display = 'block'; }
 
+  foodLog('Connecting to Worker...');
+
+  /* 10-second timeout for slow iPhone networks */
   fetchWithTimeout(WORKER_URL + '/api/calories', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ text: text })
-  }, 8000)
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
+  }, 10000)
+  .then(function(r) {
+    foodLog('HTTP status: ' + r.status);
+    /* Read raw text first so we can show it on screen if parsing fails */
+    return r.text();
+  })
+  .then(function(raw) {
+    foodLog('Raw: ' + raw.slice(0, 60));
+    var d;
+    try {
+      d = JSON.parse(raw);
+    } catch(parseErr) {
+      foodLog('JSON parse error — trying regex extraction');
+      /* Gemini sometimes returns a sentence — extract first number */
+      var numMatch = raw.match(/\d+/);
+      if (numMatch) {
+        d = { calories: parseInt(numMatch[0]) };
+        foodLog('Extracted from text: ' + d.calories);
+      } else {
+        throw new Error('No number found in: ' + raw.slice(0, 40));
+      }
+    }
     var cal = parseInt(d.calories) || 0;
-    console.log('[5.1] result:', cal);
+    foodLog('Parsed calories: ' + cal);
     if (calEl) calEl.value = cal > 0 ? String(cal) : '';
     updateCalDisplay();
   })
   .catch(function(e) {
-    console.warn('[5.1] error:', e.message);
+    var msg = e.message || String(e);
+    foodLog('Error: ' + msg);
     showOfflineBadge(true);
-    if (disp) disp.textContent = 'שגיאת רשת — הזן ידנית';
+    if (disp) disp.textContent = 'שגיאה: ' + msg.slice(0, 30);
   })
   .finally(function() {
-    /* Always re-enable — finally runs after both .then and .catch */
+    /* Always re-enable button no matter what */
     if (btn) { btn.textContent = 'חשב ›'; btn.disabled = false; }
   });
 }
