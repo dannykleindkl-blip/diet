@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.5b · 2026-04-18 15:03 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.7 · 2026-04-18 15:37 UTC</p>
           </div>
         </div>
       </div>
@@ -625,6 +625,7 @@ function showToast(msg){
    CLOUDFLARE WORKER SYNC
    ══════════════════════════════════════════ */
 var WORKER_URL = 'https://mazan-backend.danny-klein-dkl.workers.dev';
+var isRequestPending = false;  /* prevents duplicate concurrent fetches */
 
 /* ══════════════════════════════════════════════════════════
    CLOUD API — thin wrappers around the Worker endpoints
@@ -1243,6 +1244,14 @@ function foodLog(msg) {
 
 function sendToGemini(text) {
   if (!text) return;
+
+  /* Prevent duplicate concurrent requests */
+  if (isRequestPending) {
+    foodLog('Request already in flight — ignored');
+    return;
+  }
+  isRequestPending = true;
+
   foodLog('→ sendToGemini: ' + text.slice(0, 40));
 
   var btn   = document.getElementById('interpret-btn');
@@ -1256,7 +1265,7 @@ function sendToGemini(text) {
 
   foodLog('Connecting to Worker...');
 
-  /* 20-second timeout — Worker retries Gemini up to 3× internally */
+  /* 20-second timeout — Worker retries Gemini internally */
   fetchWithTimeout(WORKER_URL + '/api/calories', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1307,6 +1316,7 @@ function sendToGemini(text) {
   .finally(function() {
     /* Always re-enable — finally runs after both .then and .catch */
     if (btn) { btn.textContent = 'חשב ›'; btn.disabled = false; }
+    isRequestPending = false;
   });
 }
 
@@ -1329,6 +1339,7 @@ function openFoodSheet(idx) {
   hideClarify();
 
   /* Always re-enable button when opening sheet */
+  isRequestPending = false;
   var btn = document.getElementById('interpret-btn');
   if (btn) { btn.textContent = 'חשב ›'; btn.disabled = false; }
 
