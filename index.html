@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.3 · 2026-04-18 10:36 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.5 · 2026-04-18 11:13 UTC</p>
           </div>
         </div>
       </div>
@@ -1268,7 +1268,7 @@ function sendToGemini(text) {
     return r.text();
   })
   .then(function(raw) {
-    foodLog('Raw: ' + raw.slice(0, 60));
+    foodLog('Raw: ' + raw.slice(0, 80));
     var d;
     try {
       d = JSON.parse(raw);
@@ -1282,6 +1282,17 @@ function sendToGemini(text) {
         throw new Error('No number in response: ' + raw.slice(0, 40));
       }
     }
+
+    /* Worker signals busy (429 exhausted) — do NOT save 0, show retry message */
+    if (d.busy) {
+      foodLog('Server busy: ' + (d.error || '429'));
+      if (disp) disp.textContent = 'השרת עמוס — נסה שנית';
+      if (calEl) calEl.value = '';
+      /* Show toast so user sees it even if sheet is small */
+      showToast('⏳ השרת עמוס, נסה שנית בעוד רגע');
+      return;   /* button re-enabled by finally below */
+    }
+
     var cal = parseInt(d.calories) || 0;
     foodLog('calories=' + cal + (d.explanation ? ' | ' + d.explanation.slice(0,40) : ''));
     if (calEl) calEl.value = cal > 0 ? String(cal) : '';
@@ -1294,7 +1305,7 @@ function sendToGemini(text) {
     if (disp) disp.textContent = 'שגיאה: ' + msg.slice(0, 30);
   })
   .finally(function() {
-    /* Always re-enable button no matter what */
+    /* Always re-enable — finally runs after both .then and .catch */
     if (btn) { btn.textContent = 'חשב ›'; btn.disabled = false; }
   });
 }

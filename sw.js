@@ -2,7 +2,7 @@
    מאזן – Service Worker v3
    ══════════════════════════════════════════ */
 
-const CACHE_NAME  = 'mazan-v32';
+const CACHE_NAME  = 'mazan-v33';
 const WORKER_HOST = 'mazan-backend.danny-klein-dkl.workers.dev';
 
 /* Only files that actually exist in the repo.
