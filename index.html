@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.5 · 2026-04-18 11:13 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.5b · 2026-04-18 15:03 UTC</p>
           </div>
         </div>
       </div>
@@ -1256,12 +1256,12 @@ function sendToGemini(text) {
 
   foodLog('Connecting to Worker...');
 
-  /* 10-second timeout for slow iPhone networks */
+  /* 20-second timeout — Worker retries Gemini up to 3× internally */
   fetchWithTimeout(WORKER_URL + '/api/calories', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ text: text })
-  }, 10000)
+  }, 20000)
   .then(function(r) {
     foodLog('HTTP status: ' + r.status);
     /* Read raw text first so we can show it on screen if parsing fails */
