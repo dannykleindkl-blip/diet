@@ -454,7 +454,7 @@ body{font-family:'Heebo',sans-serif;color:var(--text);background:var(--bg);direc
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.7 · 2026-04-18 15:37 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.8 · 2026-04-19 20:03 UTC</p>
           </div>
         </div>
       </div>
@@ -874,13 +874,19 @@ function load(){
 /* Called after the browser has painted the first frame.
    All network activity lives here — never in load(). */
 function syncWithCloud(){
-  console.log('[מאזן] syncWithCloud started — network calls begin now');
+  console.log('[מאזן] syncWithCloud: fetching profile + last 7 days');
+
+  /* Fetch profile first */
   fetchProfile(function(){
     applyGoalToUI();
     renderLog();
   });
-  fetchDay(todayStr(), function(){
-    renderLog();
+
+  /* Auto-load last 7 days so calendar and log are pre-populated */
+  var toDate   = todayStr();
+  var fromDate = localDateStr(6);  /* 6 days ago = 7 days total */
+  fetchRange(fromDate, toDate, function() {
+    renderLog();   /* refresh log with any cloud data for today */
   });
 }
 
@@ -1236,10 +1242,12 @@ function hideClarify() {
 /* ── dbg: write to on-screen log and console ── */
 function foodLog(msg) {
   console.log('[מאזן]', msg);
-  var el = document.getElementById('food-debug-log');
-  if (!el) return;
-  el.style.display = 'block';
-  el.textContent   = msg + '\n' + el.textContent;   /* newest line on top */
+  /* Debug box hidden in v5.8 — log to console only */
+  /* To re-enable: uncomment lines below */
+  // var el = document.getElementById('food-debug-log');
+  // if (!el) return;
+  // el.style.display = 'block';
+  // el.textContent   = msg + '\n' + el.textContent;
 }
 
 function sendToGemini(text) {
