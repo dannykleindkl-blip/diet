@@ -457,7 +457,7 @@ input,textarea,select{font-size:16px !important;}
           </div>
           <div class="set-card" style="margin-top:14px">
             <h3 class="set-card-title">גרסת אפליקציה</h3>
-            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.9 · 2026-04-20 05:42 UTC</p>
+            <p style="font-size:13px;color:var(--muted);font-family:monospace" id="app-version">v5.9a · 2026-04-21 05:37 UTC</p>
           </div>
         </div>
       </div>
@@ -1712,6 +1712,37 @@ document.addEventListener('visibilitychange', function() {
     }
   }
 });
+
+/* ══ Swipe to navigate days on the log tab ══
+   Left swipe  → go back one day (always)
+   Right swipe → go forward one day (never past today)
+   Ignores vertical swipes so normal scrolling works.
+   Minimum 40px horizontal movement to trigger. */
+(function() {
+  var el = document.getElementById('t0');
+  if (!el) return;
+  var sx = 0, sy = 0;
+
+  el.addEventListener('touchstart', function(e) {
+    sx = e.changedTouches[0].clientX;
+    sy = e.changedTouches[0].clientY;
+  }, { passive: true });
+
+  el.addEventListener('touchend', function(e) {
+    var dx = e.changedTouches[0].clientX - sx;
+    var dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dy) > Math.abs(dx) || Math.abs(dx) < 40) return;
+    if (dx < 0) {
+      /* Left swipe → previous day */
+      shiftDay(-1);
+      fetchDay(curD, function() { renderLog(); });
+    } else if (curD < todayStr()) {
+      /* Right swipe → next day, only if not already today */
+      shiftDay(1);
+      fetchDay(curD, function() { renderLog(); });
+    }
+  }, { passive: true });
+})();
 </script>
 
 <script>
